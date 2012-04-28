@@ -1,14 +1,11 @@
 /* ===========================================================================
 
-	File: context-manager.js
+	File: context-execute.js
 
 	Author - John Dunning
-	Copyright - 2010 John Dunning.  All rights reserved.
+	Copyright - 2012 John Dunning.  All rights reserved.
 	Email - fw@johndunning.com
 	Website - http://johndunning.com/fireworks
-
-	Release - 1.3.0 ($Revision: 1.2 $)
-	Last update - $Date: 2011/04/10 21:14:27 $
 
    ======================================================================== */
 
@@ -130,8 +127,6 @@ log("**** in manager", _initialCallerPath);
 
 
 	// =======================================================================
-	// we'll instantiate one Module for each unique path that contains a script
-	// that calls module()
 	function Context(
 		inName,
 		inPath)
@@ -151,7 +146,7 @@ log("**** in manager", _initialCallerPath);
 			// support nested modules 
 		this.preservedGlobalsStack = [];
 
-		this.dojoLoaded = false;
+		this.loadedRequire = false;
 	}
 
 
@@ -161,10 +156,10 @@ log("**** in manager", _initialCallerPath);
 		
 	destroy: function()
 	{
-		if (this.globals.dojo) {
-				// get rid of the closure that has a reference to this instance
-			delete this.globals.dojo._getProp;
-		}
+//		if (this.globals.dojo) {
+//				// get rid of the closure that has a reference to this instance
+//			delete this.globals.dojo._getProp;
+//		}
 
 			// make double-sure that references to the stored globals are broken
 		this.globals = null;
@@ -174,21 +169,23 @@ log("**** in manager", _initialCallerPath);
 
 	// =======================================================================
 	execute: function(
-		inFunction)
+		inDependencies,
+		inCallback)
 	{
 			// before executing the module function, restore our previously
 			// saved globals
 		this.restoreGlobals();
 
-		if (!this.dojoLoaded) {
+		if (!this.loadedRequire) {
 				// we've never been executed before, so load the dojo library
 				// before the module function is called, since it will expect
 				// that dojo is loaded
-			this.loadDojo();
+			this.loadRequire();
 		}
 
 		try {
-			var result = inFunction();
+			var result = require(inDependencies, inCallback);
+//			var result = inFunction();
 		} catch (exception) {
 			alert(["Error in module function: " + this.name, exception.message,
 				exception.lineNumber, exception.fileName].join("\n"));
@@ -203,60 +200,19 @@ log("**** in manager", _initialCallerPath);
 
 
 	// =======================================================================
-	loadDojo: function()
+	loadRequire: function()
 	{
 			// we always need to create a dojo global for a new module because
 			// the global object isn't created with dojo._getProp (which doesn't
 			// exist yet)
-		this.loadGlobal("dojo");
+		this.loadGlobal("require");
+		this.loadGlobal("define");
 
 			// now instantiate the dojo library in this module's path
-		fw.runScript(this.path + "/lib/dojo/dojo.js");
+		fw.runScript(this.path + "/lib/require.js");
 
 			// we only need to do this once 
-		this.dojoLoaded = true;
-
-			// override the _getProp method to notify us when a new global
-			// object is created as part of dojo.provide().  before the new
-			// global is created, we want to preserve the existing global.
-		var self = this;
-		dojo._getProp = function(
-			parts,
-			create,
-			context)
-		{
-			context = context || dojo.global;
-			var obj = context;
-
-			if (obj == _global) {
-					// we're trying to access a property in the root context,
-					// so preserve any existing global before creating the
-					// first global object in this path.  we shift the first
-					// property (the global) off of "parts" so that the loop
-					// below starts with the first non-global property.  that
-					// way, creating a missing property is safe, since it won't
-					// be created in the root context.  even if create is false
-					// and we don't have a stored global with that name, we
-					// still want loadGlobal to create an empty object so that
-					// it prevents access to any existing global with that name.
-				obj = self.loadGlobal(parts.shift());
-			}
-
-			for(var i=0, p; obj&&(p=parts[i]); i++){
-					// annoyingly, the in operator doesn't work with customData, so we
-					// have to test the typeof for undefined
-				if (typeof obj[p] != "undefined") {
-					obj = obj[p];
-				} else if (create) {
-						// and obj = obj[p] = {} doesn't work.  ffs!!!
-					obj[p] = {};
-					obj = obj[p];
-				} else {
-					obj = undefined;
-				}
-			}
-			return obj; // Any
-		};
+		this.loadedRequire = true;
 	},
 
 
@@ -332,84 +288,71 @@ log("**** in manager", _initialCallerPath);
 
 
 	// =======================================================================
-	var context = function(
+	var execute = function(
 		inContextName,
-		inContextFunction,
-		inDestroyContext)
+		inDependencies,
+		inCallback)
 	{
 log(inContextName);
 
 			// if currentScriptDir is null, it means this is the first module()
 			// call after we were loaded via runScript, so fall back to the
 			// _initialModulePath we stored above
-		var contextPath = fw.currentScriptDir || _initialCallerPath,
-			contextName;
+		var contextPath = fw.currentScriptDir || _initialCallerPath;
 			
-		if (typeof inContextName != "function") {
-				// the caller is creating a named module, rather than an
-				// anonymous one based on the script's path
-			contextName = inContextName;
-
-			if (contextName.indexOf("file://") == 0) {
-					// the caller passed in a file URL as the name, so assume
-					// it's a path to the folder containing the lib/ folder.
-					// this lets us support modules where fw.currentScriptDir is
-					// not reliably the same path, such as in auto shapes.  make
-					// sure there's no trailing /, as loadDojo assumes there
-					// isn't one.
-				contextPath = contextName.replace(/\/$/, "");
-				contextName = prettifyPath(contextPath);
-			}
-		} else {
-			contextName = prettifyPath(contextPath);
-
-				// the function was actually passed as the first parameter
-			inContextFunction = inContextName;
+		if (typeof inContextName == "function") {
+			inCallback = inContextName;
+			inDependencies = [];
+			inContextName = prettifyPath(contextPath);
+		} else if (typeof inContextName instanceof Array) {
+			inDependencies = inContextName;
+			inCallback = inDependencies;
+			inContextName = prettifyPath(contextPath);
 		}
 
 			// get the previously saved context with this name, or create a new
 			// one if it's the first time this name is being used 
-		var currentModule = _contexts[contextName];
-		if (!currentModule) {
-			_contexts[contextName] = currentModule = new Context(contextName, contextPath);
+		var context = _contexts[inContextName];
+		if (!context) {
+			_contexts[inContextName] = context = new Context(inContextName, contextPath);
 		}
 
 			// push the module onto the stack so we can support nested modules
-		_stack.push(currentModule);
+		_stack.push(context);
 
 			// tell the module to execute the function the caller passed in
-		var result = currentModule.execute(inContextFunction);
+		var result = context.execute(inDependencies, inCallback);
 
 		_stack.pop();
 
-		if (inDestroyContext == "destroy") {
-				// the module wants to be destroyed after it runs, so kill it
-				// as long as one with the same name doesn't exist in the stack,
-				// as destroying this one would affect the earlier one
-			var moduleInStack = false;
-
-			for (var i = 0; i < _stack.length; i++) {
-				if (_stack[i].name == contextName) {
-					moduleInStack = true;
-					break;
-				}
-			}
-
-			if (!moduleInStack) {
-					// it's safe to destroy the module
-				context.destroy(contextName);
-			}
-		}
+//		if (inDestroyContext == "destroy") {
+//				// the module wants to be destroyed after it runs, so kill it
+//				// as long as one with the same name doesn't exist in the stack,
+//				// as destroying this one would affect the earlier one
+//			var moduleInStack = false;
+//
+//			for (var i = 0; i < _stack.length; i++) {
+//				if (_stack[i].name == contextName) {
+//					moduleInStack = true;
+//					break;
+//				}
+//			}
+//
+//			if (!moduleInStack) {
+//					// it's safe to destroy the module
+//				context.destroy(contextName);
+//			}
+//		}
 
 		return result;
 	};
 
 
-	context.version = 1.3;
+	execute.version = 1.0;
 
 
 	// =======================================================================
-	context.get = function(
+	execute.get = function(
 		inContextName)
 	{
 		return _contexts[inContextName];
@@ -417,7 +360,7 @@ log(inContextName);
 
 
 	// =======================================================================
-	context.getNames = function()
+	execute.getNames = function()
 	{
 		var names = [];
 
@@ -430,7 +373,7 @@ log(inContextName);
 
 
 	// =======================================================================
-	context.destroy = function(
+	execute.destroy = function(
 		inContextName)
 	{
 			// default to the path of the current script if no name is passed in
@@ -445,7 +388,7 @@ log(inContextName);
 
 
 	// =======================================================================
-	context.destroyAll = function()
+	execute.destroyAll = function()
 	{
 		for (var name in _contexts) {
 			context.destroy(name);
@@ -454,7 +397,7 @@ log(inContextName);
 
 
 	if (typeof _global.context == "function") {
-		_global.context.addManager(_initialCallerPath, context);
+		_global.context.register(_initialCallerPath, execute);
 	}
 })();
 

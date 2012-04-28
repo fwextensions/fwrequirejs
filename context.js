@@ -3,12 +3,9 @@
 	File: context.js
 
 	Author - John Dunning
-	Copyright - 2010 John Dunning.  All rights reserved.
+	Copyright - 2012 John Dunning.  All rights reserved.
 	Email - fw@johndunning.com
 	Website - http://johndunning.com/fireworks
-
-	Release - 1.3.0 ($Revision: 1.2 $)
-	Last update - $Date: 2011/04/10 21:14:27 $
 
    ======================================================================== */
 
@@ -100,17 +97,15 @@
 //  Main
 // ===========================================================================
 
-try {
-
+try { (function() {
+		
 log(new Date().toLocaleString());
 
-(function() {
 		// a hash to store each module we're managing by name
-	var _managers = {},
+	var _executors = {},
 			// get a reference to the global object.  this would be "window"
 			// in a browser, but isn't named in Fireworks.
-		_global = this,
-//		_root = (function() { return this; })(),
+		_global = (function() { return this; })(),
 			// we have to keep track of the currentScriptDir when we're first loaded
 			// because it will be empty the first time module() is called after
 			// we're first loaded.  the code that's calling us is in the directory
@@ -125,26 +120,26 @@ log(new Date().toLocaleString());
 			// call after we were loaded via runScript, so fall back to the
 			// _initialCallerPath we stored above
 		var callerPath = fw.currentScriptDir || _initialCallerPath,
-			manager = _managers[callerPath];
+			executor = _executors[callerPath];
 
 log("callerPath", callerPath, "currentScriptDir", fw.currentScriptDir);
 
-		if (!manager) {
-			var managerPath = callerPath + "/lib/context-manager.js";
-log("managerPath", managerPath);
+		if (!executor) {
+			var executorPath = callerPath + "/lib/context-executor.js";
+log("factoryPath", executorPath);
 
-			if (Files.exists(managerPath)) {
-log("*** loading manager");
-				fw.runScript(managerPath);
+			if (Files.exists(executorPath)) {
+log("*** loading executor");
+				fw.runScript(executorPath);
 // throw error if addManager wasn't called? 
 // probably don't need ot pass path into addManager
-				manager = _managers[callerPath];
+				executor = _executors[callerPath];
 			}
 		}
 
-		if (manager) {
-log("*** calling manager");
-			manager.apply(_global, arguments);
+		if (executor) {
+log("*** executing");
+			executor.apply(_global, arguments);
 		}
 	};
 
@@ -153,20 +148,20 @@ log("*** calling manager");
 
 
 	// =======================================================================
-	context.getManager = function(
-		inManagerPath)
+	context.getExecutor = function(
+		inExecutorPath)
 	{
-		return _managers[inManagerPath];
+		return _executors[inExecutorPath];
 	};
 
 
 	// =======================================================================
-	context.addManager = function(
+	context.register = function(
 		inPath,
-		inContextFunc)
+		inExecutor)
 	{
-log("addManager", inPath);
-		_managers[inPath] = inContextFunc;
+log("register", inPath);
+		_executors[inPath] = inExecutor;
 	};
 
 //log("_initialPath in context", _initialPath);
@@ -178,8 +173,10 @@ log("addManager", inPath);
 //	} else {
 //		_root.context = context;
 //	}
-})();
-
-} catch (exception) {
-	alert([exception, exception.lineNumber, exception.fileName].join("\n"));
+})(); } catch (exception) {
+	if (exception.lineNumber) {
+		alert([exception, exception.lineNumber, exception.fileName].join("\n"));
+	} else {
+		throw exception;
+	}
 }
