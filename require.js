@@ -314,7 +314,7 @@ log("found config object");
             if (prefix) {
                 prefix = normalize(prefix, parentName);
             }
-log("makeModuleMap name prefix", name, prefix);
+//log("makeModuleMap name prefix", name, prefix);
 
             //Account for relative paths if there is a base name.
             if (name) {

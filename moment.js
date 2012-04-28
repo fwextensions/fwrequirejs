@@ -728,14 +728,9 @@
     }
     /*global define:false */
     if (typeof define === "function" && define.amd) {
-log("========== define moment");
-//        define("moment", function () {
-        define(function () {
-//        define("moment", [], function () {
-log("========== returning moment");
+        define("moment", [], function () {
             return moment;
         });
     }
-log("============ end of moment");
 
 })(Date);
