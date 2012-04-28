@@ -63,19 +63,16 @@ try { (function() {
 	context.version = 1.0;
 
 
-// some way to list paths of executors
-
-
 	// =======================================================================
-	context.getNames = function()
+	context.getPaths = function()
 	{
-		var names = [];
+		var paths = [];
 
-		for (var name in _executors) {
-			names.push(name);
+		for (var path in _executors) {
+			paths.push(path);
 		}
 
-		return names;
+		return paths;
 	};
 
 
@@ -88,11 +85,34 @@ try { (function() {
 
 
 	// =======================================================================
-	context.register = function(
+	context.registerExecutor = function(
 		inPath,
 		inExecutor)
 	{
 		_executors[inPath] = inExecutor;
+	};
+
+
+	// =======================================================================
+	context.destroy = function(
+		inPath)
+	{
+		var executor = _executors[inPath];
+		
+		if (executor) {
+				// destroying an executor means destroying all the contexts
+				// it manages
+			executor.destroyAll();
+		}
+	};
+
+
+	// =======================================================================
+	context.destroyAll = function()
+	{
+		for (var path in _executors) {
+			context.destroy(path);
+		}
 	};
 })(); } catch (exception) {
 	if (exception.lineNumber) {

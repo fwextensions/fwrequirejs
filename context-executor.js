@@ -44,7 +44,6 @@ try {
 			// above the /lib/
 		_initialCallerPath = Files.getDirectory(fw.currentScriptDir);
 
-log("**** in manager", _initialCallerPath);
 
 	// =======================================================================
 	function prettifyPath(
@@ -316,7 +315,7 @@ log("*** attach", url);
 
 		// register our executor with the context global 
 	if (typeof _global.context == "function") {
-		_global.context.register(_initialCallerPath, execute);
+		_global.context.registerExecutor(_initialCallerPath, execute);
 	}
 })();
 
