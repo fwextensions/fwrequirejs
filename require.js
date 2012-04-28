@@ -10,7 +10,7 @@ log("in requirejs", fw.currentScriptDir);
 
 var requirejs, require, define;
 (function (undefined) {
-log("in module");
+log("in module function", requirejs, require, define);
 
     //Change this version number for each release.
     var version = "1.0.8",

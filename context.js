@@ -147,6 +147,9 @@ log("*** executing");
 	context.version = 1.0;
 
 
+// some way to list paths of executors
+
+
 	// =======================================================================
 	context.getExecutor = function(
 		inExecutorPath)

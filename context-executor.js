@@ -24,6 +24,11 @@
 
 
 	To do:
+		- should have just one instance of require per executor?
+
+
+
+
 		- use the return value from the module function for something?
 			destroy the module if it returns "destroy"?
 
@@ -183,8 +188,10 @@ log("**** in manager", _initialCallerPath);
 			this.loadRequire();
 		}
 
+log("execute", inDependencies, inCallback);
 		try {
 			var result = require(inDependencies, inCallback);
+log("======== result after require");			
 //			var result = inFunction();
 		} catch (exception) {
 			alert(["Error in module function: " + this.name, exception.message,
@@ -202,14 +209,31 @@ log("**** in manager", _initialCallerPath);
 	// =======================================================================
 	loadRequire: function()
 	{
+//log("*********** loadRequire", requirejs, require, define);
+
 			// we always need to create a dojo global for a new module because
 			// the global object isn't created with dojo._getProp (which doesn't
 			// exist yet)
 		this.loadGlobal("require");
 		this.loadGlobal("define");
+		
+//log("*********** loadRequire after loadGlobal", requirejs, require, define);
 
 			// now instantiate the dojo library in this module's path
 		fw.runScript(this.path + "/lib/require.js");
+		
+		var libPath = this.path + "/lib/";
+
+		require.attach = function(
+			url, 
+			context, 
+			moduleName) 
+		{
+			url = libPath + url;
+log("*** attach", url);
+			fw.runScript(url);
+			context.completeLoad(moduleName);
+		};
 
 			// we only need to do this once 
 		this.loadedRequire = true;
@@ -224,9 +248,7 @@ log("**** in manager", _initialCallerPath);
 				// preserve the current value of inGlobalName
 			this.preservedGlobals[inGlobalName] = _global[inGlobalName];
 
-				// create an empty object if we don't already have a global of
-				// this name for this module
-			this.globals[inGlobalName] = this.globals[inGlobalName] || {};
+			this.globals[inGlobalName] = this.globals[inGlobalName];
 		}
 
 			// make our saved global available in the root context.  it'll be an
@@ -293,7 +315,7 @@ log("**** in manager", _initialCallerPath);
 		inDependencies,
 		inCallback)
 	{
-log(inContextName);
+log("======= execute", inContextName, inDependencies, inCallback, typeof inContextName == "function", inContextName instanceof Array);
 
 			// if currentScriptDir is null, it means this is the first module()
 			// call after we were loaded via runScript, so fall back to the
@@ -304,9 +326,9 @@ log(inContextName);
 			inCallback = inContextName;
 			inDependencies = [];
 			inContextName = prettifyPath(contextPath);
-		} else if (typeof inContextName instanceof Array) {
-			inDependencies = inContextName;
+		} else if (inContextName instanceof Array) {
 			inCallback = inDependencies;
+			inDependencies = inContextName;
 			inContextName = prettifyPath(contextPath);
 		}
 
@@ -319,6 +341,7 @@ log(inContextName);
 
 			// push the module onto the stack so we can support nested modules
 		_stack.push(context);
+log(inDependencies, inCallback);
 
 			// tell the module to execute the function the caller passed in
 		var result = context.execute(inDependencies, inCallback);
