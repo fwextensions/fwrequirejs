@@ -12,10 +12,6 @@
 
 /*
 	To do:
-		- put the context and executor code in the same context.js file
-			if context isn't defined, it'll use the executor in its own file
-			if it is, then it'll register with the global context
-
 		- should we always assume context.js is in /lib/?
 
 		- support configuration objects being passed in
@@ -52,6 +48,10 @@
 		- probably don't need to pass path into register
 
 	Done:
+		- put the context and executor code in the same context.js file
+			if context isn't defined, it'll use the executor in its own file
+			if it is, then it'll register with the global context
+
 		- files at two different paths can't use the same context because this
 			context manager just looks at the caller's path and maps that to 
 			an executor
