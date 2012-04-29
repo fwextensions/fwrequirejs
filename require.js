@@ -6,11 +6,11 @@
 /*jslint strict: false, plusplus: false, sub: true */
 /*global window, navigator, document, importScripts, jQuery, setTimeout, opera */
 
-log("in requirejs", fw.currentScriptDir);
+//log("in requirejs", fw.currentScriptDir);
 
 var requirejs, require, define;
 (function (undefined) {
-log("in module function", requirejs, require, define);
+log("in require definition function", requirejs, require, define);
 
     //Change this version number for each release.
     var version = "1.0.8",
@@ -434,9 +434,11 @@ log("found config object");
                 listeners = manager.listeners,
                 execCb = config.requireExecCb || req.execCb,
                 cjsModule;
+//log("in execManager");
 
             //Call the callback to define the module, if necessary.
             if (cb && isFunction(cb)) {
+//log("found callback");				
                 if (config.catchError.define) {
                     try {
                         ret = execCb(fullName, manager.callback, args, defined[fullName]);
@@ -752,7 +754,7 @@ log("found config object");
                 id = manager.id,
                 deps = manager.deps,
                 i, depArg, depName, depPrefix, cjsMod;
-log("in main fullName", fullName);
+//log("in main fullName:", fullName);
 //log("in main fullName", fullName, "moduleMap", moduleMap);			
 
             if (fullName) {
@@ -785,7 +787,7 @@ log(fullName, "already defined");
             //for a module.
             manager.depArray = depArray;
             manager.callback = callback;
-//log("callback", manager.callback+"");
+//log("manager.callback", manager.callback+"");
 
             //Add the dependencies to the deps field, and register for callbacks
             //on the dependencies.
@@ -1344,7 +1346,7 @@ log(fullName, "already defined");
             },
 
             require: function (deps, callback, relModuleMap) {
-log("*** require", deps);				
+log("*** require", deps, callback);				
                 var moduleName, fullName, moduleMap;
                 if (typeof deps === "string") {
                     if (isFunction(callback)) {
@@ -1720,7 +1722,7 @@ log("*** in define", name, deps);
             //Remove comments from the callback string,
             //look for require calls, and pull them into the dependencies,
             //but only if there are function args.
-log("callback.length", callback.length);
+//log("callback.length", callback.length);
 
             if (callback.length) {
                 callback
@@ -1786,6 +1788,7 @@ log("done define");
      * @private
      */
     req.execCb = function (name, callback, args, exports) {
+//log("execCb", name, callback+"");		
         return callback.apply(exports, args);
     };
 

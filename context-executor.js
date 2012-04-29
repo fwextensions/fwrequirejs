@@ -12,16 +12,24 @@
 
 /*
 	To do:
-		- should have just one instance of require per executor?
-
-		- see if passing in just a function with no dependencies works
+		- the executor should probably be its own class
 
 		- do we need nested contexts? 
+			yes, if a command panel wants to require a library that's defined
+			in /Commands, and that library doesn't export a global 
+
+		- move loadRequire to Context constructor?
 
 		- store the path to the lib folder on the context, not the path to the
 			parent folder
 
+		- should have just one instance of require per executor?
+			no, because then one path could have only one context
+
 	Done:
+		- see if passing in just a function with no dependencies works
+			it didn't, but does now
+
 */
 
 
@@ -98,11 +106,14 @@ try {
 	// =======================================================================
 	execute: function(
 		inDependencies,
-		inCallback)
+		inCallback,
+		inSameContext)
 	{
-			// before executing the module function, restore our previously
-			// saved globals
-		this.restoreGlobals();
+			// before executing the callback, restore our previously saved 
+			// globals, but only if a different context was previously loaded
+		if (!inSameContext) {
+			this.restoreGlobals();
+		}
 
 		if (!this.loadedRequire) {
 				// we've never been executed before, so load the require library
@@ -112,6 +123,7 @@ try {
 		}
 
 		try {
+				// call this context's instance of the require global 
 			var result = require(inDependencies, inCallback);
 		} catch (exception) {
 			alert(["Error in context: " + this.name, exception.message,
@@ -120,8 +132,10 @@ try {
 
 			// save the current values of our globals, which will also restore
 			// their previously preserved values
-		this.saveGlobals();
-
+		if (!inSameContext) {
+			this.saveGlobals();
+		}
+		
 		return result;
 	},
 
@@ -224,7 +238,7 @@ log("*** attach", url);
 		this.preservedGlobals = this.preservedGlobalsStack.pop();
 	}
 
-	};
+	}; // end of Context.prototype
 
 
 	// =======================================================================
@@ -238,6 +252,7 @@ log("*** attach", url);
 			// _initialModulePath we stored above
 		var contextPath = fw.currentScriptDir || _initialCallerPath;
 			
+			// adjust the optional parameters 
 		if (typeof inContextName == "function") {
 			inCallback = inContextName;
 			inDependencies = [];
@@ -246,18 +261,25 @@ log("*** attach", url);
 			inCallback = inDependencies;
 			inDependencies = inContextName;
 			inContextName = prettifyPath(contextPath);
+		} else if (typeof inDependencies == "function") {
+			inCallback = inDependencies;
+			inDependencies = [];
 		}
 
 			// get the previously saved context with this name, or create a new
 			// one if it's the first time this name is being used 
 		var context = _contexts[inContextName] ||
-			(_contexts[inContextName] = new Context(inContextName, contextPath));
+			(_contexts[inContextName] = new Context(inContextName, contextPath)),
+			previousContext = _stack[_stack.length - 1],
+			executingInSameContext = (previousContext && (previousContext.name == context.name));
 
 			// push the module onto the stack so we can support nested modules
 		_stack.push(context);
 
-			// tell the module to execute the function the caller passed in
-		var result = context.execute(inDependencies, inCallback);
+			// tell the module to execute the function the caller passed in and
+			// whether the same context is already loaded, which means it doesn't
+			// need to save off its globals 
+		var result = context.execute(inDependencies, inCallback, executingInSameContext);
 
 		_stack.pop();
 
@@ -315,7 +337,7 @@ log("*** attach", url);
 
 		// register our executor with the context global 
 	if (typeof _global.context == "function") {
-		_global.context.registerExecutor(_initialCallerPath, execute);
+		_global.context.registerExecutor(execute);
 	}
 })();
 
