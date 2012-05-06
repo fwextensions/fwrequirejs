@@ -12,27 +12,29 @@
 
 /*
 	To do:
+		- call it context dispatcher and context manager 
+
 		- should we always assume context.js is in /lib/?
 
 		- support configuration objects being passed in
 
 		- support passing a path to the lib directory for the context name? 
 
-		- it's possible to have named and unnamed executors at the same path
+		- it's possible to have named and unnamed managers at the same path
 			is that a problem? 
 
-		- the executor should probably be its own class
+		- the manager should probably be its own class
 
 		- do we need nested contexts? 
 			yes, if a command panel wants to require a library that's defined
 			in /Commands, and that library doesn't export a global 
 
-		- move loadRequire to Context constructor?
+		- move loadRequire to Manager constructor?
 
 		- store the path to the lib folder on the context, not the path to the
 			parent folder
 
-		- should have just one instance of require per executor?
+		- should have just one instance of require per manager?
 			no, because then one path could have only one context
 
 		- how do you define a module?
@@ -48,13 +50,13 @@
 		- probably don't need to pass path into register
 
 	Done:
-		- put the context and executor code in the same context.js file
-			if context isn't defined, it'll use the executor in its own file
+		- put the context and manager code in the same context.js file
+			if context isn't defined, it'll use the manager in its own file
 			if it is, then it'll register with the global context
 
 		- files at two different paths can't use the same context because this
 			context manager just looks at the caller's path and maps that to 
-			an executor
+			an manager
 			doesn't look at any name passed in
 
 		- see if passing in just a function with no dependencies works
@@ -67,49 +69,54 @@
 (function(context) {
 	var exception;
 
-	function setupContext() {
-			// a hash to store each context executor we're managing by name
-		var _executors = {},
+	function setupDispatcher() {
+			// a hash to store each context manager by name
+		var _managers = {},
 				// get a reference to the global object.  this would be "window"
 				// in a browser, but isn't named in Fireworks.
 			_global = (function() { return this; })(),
 				// we have to keep track of the currentScriptDir when we're first loaded
-				// because it will be empty the first time module() is called after
+				// because it will be empty the first time context() is called after
 				// we're first loaded.  the code that's calling us is in the directory
 				// above the /lib/
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir),
-			_currentContextName = "";
+				// this module global stores the requested manager path or name
+				// while the manager code is loaded, so we know what to call it
+				// when it calls registerManager()
+			_currentManagerName = "";
 
 
 		// ===================================================================
-		var context = _global.context = function(
-			inContextName)
+		context = _global.context = function(
+			inManagerName)
 		{
 				// if currentScriptDir is null, it means this is the first context()
 				// call after we were loaded via runScript, so fall back to the
 				// _initialCallerPath we stored above
 			var callerPath = fw.currentScriptDir || _initialCallerPath,
-				contextName = typeof inContextName == "string" ? inContextName : callerPath,
-				executor = _executors[contextName];
+				contextName = typeof inManagerName == "string" ? inManagerName : callerPath,
+				manager = _managers[contextName];
 
-			if (!executor) {
+			if (!manager) {
 					// call the version of context.js at this path
-				var executorPath = callerPath + "/lib/context.js";
+				var managerPath = callerPath + "/lib/context.js";
 
-				if (Files.exists(executorPath)) {
+				if (Files.exists(managerPath)) {
 						// save the current contextName, which we'll use when the
-						// executor calls registerExecutor after we run its JS
-					_currentContextName = contextName;
-					fw.runScript(executorPath);
+						// manager calls registerManager after we run its JS
+					_currentManagerName = contextName;
+					fw.runScript(managerPath);
 
-						// the executor should now be registered
-					executor = _executors[contextName];
-					_currentContextName = "";
+						// the manager should now be registered
+					manager = _managers[contextName];
+					_currentManagerName = "";
 				}
 			}
 
-			if (executor) {
-				executor.apply(_global, arguments);
+			if (manager) {
+					// dispatch the context call to the manager for the 
+					// requested context
+				manager.apply(_global, arguments);
 			}
 		};
 
@@ -122,7 +129,7 @@
 		{
 			var names = [];
 
-			for (var name in _executors) {
+			for (var name in _managers) {
 				names.push(name);
 			}
 
@@ -131,21 +138,21 @@
 
 
 		// ===================================================================
-		context.getExecutor = function(
-			inExecutorPath)
+		context.getManager = function(
+			inManagerPath)
 		{
-			return _executors[inExecutorPath];
+			return _managers[inManagerPath];
 		};
 
 
 		// ===================================================================
-		context.registerExecutor = function(
-			inExecutor)
+		context.registerManager = function(
+			inManager)
 		{
-				// if _currentContextName is falsy, we must not be in the middle of
-				// calling runScript on an executor, so ignore this call 
-			if (_currentContextName) {
-				_executors[_currentContextName] = inExecutor;
+				// if _currentManagerName is falsy, we must not be in the middle of
+				// calling runScript on an manager, so ignore this call 
+			if (_currentManagerName) {
+				_managers[_currentManagerName] = inManager;
 			}
 		};
 
@@ -154,12 +161,12 @@
 		context.destroy = function(
 			inPath)
 		{
-			var executor = _executors[inPath];
+			var manager = _managers[inPath];
 
-			if (executor) {
-					// destroying an executor means destroying all the contexts
+			if (manager) {
+					// destroying an manager means destroying all the contexts
 					// it manages
-				executor.destroyAll();
+				manager.destroyAll();
 			}
 		};
 
@@ -167,7 +174,7 @@
 		// ===================================================================
 		context.destroyAll = function()
 		{
-			for (var path in _executors) {
+			for (var path in _managers) {
 				context.destroy(path);
 			}
 		};
@@ -177,15 +184,15 @@
 
 
 	// =======================================================================
-	function setupExecutor() {
-			// a hash to store each module we're managing by name
+	function setupManager() {
+			// a hash to store each context we're managing by name
 		var _contexts = {},
 			_stack = [],
 				// get a reference to the global object.  this would be "window"
 				// in a browser, but isn't named in Fireworks.
-			_global = this,
+			_global = (function() { return this; })(),
 				// we have to keep track of the currentScriptDir when we're first loaded
-				// because it will be empty the first time module() is called after
+				// because it will be empty the first time context() is called after
 				// we're first loaded.  the code that's calling us is in the directory
 				// above the /lib/
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir);
@@ -195,7 +202,7 @@
 		function prettifyPath(
 			inPath)
 		{
-				// to make a prettier module name, remove the path to the app
+				// to make a prettier context name, remove the path to the app
 				// Commands directory, or replace it with USER if it's in the
 				// user directory
 			return inPath.replace(fw.appJsCommandsDir, "").replace(fw.userJsCommandsDir, "USER");
@@ -210,16 +217,16 @@
 			this.name = inName;
 			this.path = inPath;
 
-				// these are the globals that belong to the module and will be saved
-				// after the module exits
+				// these are the globals that belong to the context and will be saved
+				// after the context exits
 			this.globals = {};
 
 				// these are the globals that are being overridden by the current
-				// execution of the module
+				// execution of the context
 			this.preservedGlobals = {};
 
 				// this is a stack of previously preserved globals, so that we can
-				// support nested modules 
+				// support nested contexts 
 			this.preservedGlobalsStack = [];
 
 			this.loadedRequire = false;
@@ -261,7 +268,8 @@
 			}
 
 			try {
-					// call this context's instance of the require global 
+					// call this context's instance of the require global, which
+					// should be loaded or restored by now 
 				var result = require(inDependencies, inCallback);
 			} catch (exception) {
 				if (exception.lineNumber) {
@@ -290,7 +298,7 @@
 		// ===================================================================
 		loadRequire: function()
 		{
-				// these are the three globals that require creates.  loading them
+				// these are the three globals that require() creates.  loading them
 				// now won't restore any previous value (since this is the first time
 				// we're loading require), but it ensures that they'll be saved when
 				// we're done executing.
@@ -303,13 +311,14 @@
 				// now instantiate the require library in this context's path
 			fw.runScript(libPath + "require.js");
 
+				// override the attach method on require to use a synchronous
+				// file load to load the module 
 			require.attach = function(
 				url, 
 				context, 
 				moduleName) 
 			{
 				url = libPath + url;
-log("*** attach", url);
 				fw.runScript(url);
 				context.completeLoad(moduleName);
 			};
@@ -332,7 +341,7 @@ log("*** attach", url);
 
 				// make our saved global available in the root context.  it'll be an
 				// empty object if this is the first time the global is being used
-				// in this module.
+				// in this context.
 			_global[inGlobalName] = this.globals[inGlobalName];
 
 			return _global[inGlobalName];
@@ -346,8 +355,8 @@ log("*** attach", url);
 				// then create a fresh object to store the current globals.  calling
 				// loadGlobal will store the current global in this.preservedGlobals.
 				// we need to keep a stack of these preserved globals because one
-				// module may call another.  so if A > B > C > A, the second instance
-				// of module A needs to preserve the globals created in C, while the
+				// context may call another.  so if A > B > C > A, the second instance
+				// of context A needs to preserve the globals created in C, while the
 				// first instance still preserves whatever globals were in place
 				// when it was called. 
 			this.preservedGlobalsStack.push(this.preservedGlobals);
@@ -366,7 +375,7 @@ log("*** attach", url);
 
 			for (name in this.globals) {
 					// update our stored reference to this global before deleting
-					// it, in case this is the first time through the module and the
+					// it, in case this is the first time through the context and the
 					// code that modified the global didn't use the empty object we
 					// created when loadGlobal() was initially called.  for instance,
 					// dojo.provide("foo"); foo = function() { ... }; replaces the
@@ -394,7 +403,7 @@ log("*** attach", url);
 			inDependencies,
 			inCallback)
 		{
-				// if currentScriptDir is null, it means this is the first module()
+				// if currentScriptDir is null, it means this is the first context()
 				// call after we were loaded via runScript, so fall back to the
 				// _initialModulePath we stored above
 			var contextPath = fw.currentScriptDir || _initialCallerPath;
@@ -420,10 +429,10 @@ log("*** attach", url);
 				previousContext = _stack[_stack.length - 1],
 				executingInSameContext = (previousContext && (previousContext.name == context.name));
 
-				// push the module onto the stack so we can support nested modules
+				// push the context onto the stack so we can support nested contexts
 			_stack.push(context);
 
-				// tell the module to execute the function the caller passed in and
+				// tell the context to execute the function the caller passed in and
 				// whether the same context is already loaded, which means it doesn't
 				// need to save off its globals 
 			var result = context.execute(inDependencies, inCallback, executingInSameContext);
@@ -482,19 +491,20 @@ log("*** attach", url);
 		};
 
 
-			// register our executor with the context global 
+			// register our manager with the context global 
 		if (typeof context == "function") {
-			context.registerExecutor(execute);
+			context.registerManager(execute);
 		}
 	}
 
 	try { 
 		if (typeof context != "function") {
 				// the global context function hasn't been set up yet
-			setupContext();
+			setupDispatcher();
 		} else {
-				// there's already a context, so just define our local executor
-			setupExecutor();
+				// there's already a global context dispatcher, so just 
+				// define the manager for the local path
+			setupManager();
 		}
 	} catch (exception) {
 		if (exception.lineNumber) {
@@ -503,4 +513,4 @@ log("*** attach", url);
 			throw exception;
 		}
 	}
-})(context); 
+})(context); // pass the existing global, if any, into our module 
