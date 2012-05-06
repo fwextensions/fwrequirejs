@@ -264,8 +264,17 @@
 					// call this context's instance of the require global 
 				var result = require(inDependencies, inCallback);
 			} catch (exception) {
-				alert(["Error in context: " + this.name, exception.message,
-					exception.lineNumber, exception.fileName].join("\n"));
+				if (exception.lineNumber) {
+					alert(["Error in context: " + this.name, exception.message,
+						exception.lineNumber, exception.fileName].join("\n"));
+				} else {
+						// there's no error info on the exception, so show an
+						// alert that there was an error in this context, then
+						// throw the exception to let FW display a more 
+						// meaningful error message
+					alert("Error in context: " + this.name);
+					throw exception;
+				}
 			}
 
 				// save the current values of our globals, which will also restore
