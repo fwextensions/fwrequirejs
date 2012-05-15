@@ -18,6 +18,7 @@
 				to a different folder has poor error message 
 
 		- should we always assume context.js is in /lib/?
+			let it be part of a configuration object
 
 		- support configuration objects being passed in
 
@@ -75,7 +76,17 @@
 
 
 // ===========================================================================
-(function(context) {
+(function(context, console) {
+	try {
+		console.log.call;
+	} catch (exception) { 
+			// there's no global console loaded, so set up a dummy noop one
+		console = {
+			log: function() {}
+		};
+	}
+	
+
 	function setupDispatcher() {
 			// a hash to store each context manager by name
 		var _managers = {},
@@ -86,6 +97,7 @@
 				// because it will be empty the first time context() is called after
 				// we're first loaded.  the code that's calling us is in the directory
 				// above the /lib/
+			_initialLibPath = fw.currentScriptDir,
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir),
 				// this module global stores the requested manager path or name
 				// while the manager code is loaded, so we know what to call it
@@ -201,7 +213,8 @@
 				// we have to keep track of the currentScriptDir when we're first loaded
 				// because it will be empty the first time context() is called after
 				// we're first loaded.  the code that's calling us is in the directory
-				// above the /lib/
+				// above the /lib/.
+			_initialLibPath = fw.currentScriptDir,
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir);
 
 
@@ -318,6 +331,15 @@
 				// now instantiate the require library in this context's path
 			fw.runScript(libPath + "require.js");
 
+			try {
+					// tell require where to look for our files 
+				require({ baseUrl: libPath });
+			} catch (exception) { 
+					// the require library must not be installed 
+				console.log("ERROR: require.js not found at", libPath);
+				return;
+			}
+
 				// override the attach method on require to use a synchronous
 				// file load to load the module 
 			require.attach = function(
@@ -325,8 +347,14 @@
 				context, 
 				moduleName) 
 			{
-				url = libPath + url;
-log("==== attach", url);				
+				if (url.indexOf("file://") != 0) {
+						// the required module name must end in .js, which 
+						// require tries to load from a path relative to the
+						// HTML page, which doesn't exist.  so force it to use
+						// our lib path. 
+					url = libPath + url;
+				}
+				
 				fw.runScript(url);
 				context.completeLoad(moduleName);
 			};
@@ -523,4 +551,4 @@ log("==== attach", url);
 			throw exception;
 		}
 	}
-})(context); // pass the existing global, if any, into our module 
+})(context, console); // pass the existing globals, if any, into our module 
