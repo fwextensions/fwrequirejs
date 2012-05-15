@@ -12,18 +12,22 @@
 
 /*
 	To do:
-		- call it context dispatcher and context manager 
+		- need better error handling when a module can't be found
+			alert with the paths that were searched
+			having a module define a name for itself and then move the module
+				to a different folder has poor error message 
 
 		- should we always assume context.js is in /lib/?
 
 		- support configuration objects being passed in
 
+		- test defining JSML in a panel and requiring a library defined
+			in Commands
+
 		- support passing a path to the lib directory for the context name? 
 
 		- it's possible to have named and unnamed managers at the same path
 			is that a problem? 
-
-		- the manager should probably be its own class
 
 		- do we need nested contexts? 
 			yes, if a command panel wants to require a library that's defined
@@ -50,6 +54,11 @@
 		- probably don't need to pass path into register
 
 	Done:
+		- the manager should probably be its own class
+			but it's a singleton for a given path 
+
+		- call it context dispatcher and context manager 
+
 		- put the context and manager code in the same context.js file
 			if context isn't defined, it'll use the manager in its own file
 			if it is, then it'll register with the global context
@@ -67,8 +76,6 @@
 
 // ===========================================================================
 (function(context) {
-	var exception;
-
 	function setupDispatcher() {
 			// a hash to store each context manager by name
 		var _managers = {},
@@ -116,7 +123,7 @@
 			if (manager) {
 					// dispatch the context call to the manager for the 
 					// requested context
-				manager.apply(_global, arguments);
+				manager.executeContext.apply(manager, arguments);
 			}
 		};
 
@@ -175,7 +182,7 @@
 		context.destroyAll = function()
 		{
 			for (var path in _managers) {
-				context.destroy(path);
+				this.destroy(path);
 			}
 		};
 
@@ -319,6 +326,7 @@
 				moduleName) 
 			{
 				url = libPath + url;
+log("==== attach", url);				
 				fw.runScript(url);
 				context.completeLoad(moduleName);
 			};
@@ -398,102 +406,104 @@
 
 
 		// ===================================================================
-		var execute = function(
-			inContextName,
-			inDependencies,
-			inCallback)
-		{
-				// if currentScriptDir is null, it means this is the first context()
-				// call after we were loaded via runScript, so fall back to the
-				// _initialModulePath we stored above
-			var contextPath = fw.currentScriptDir || _initialCallerPath;
+		var manager = {
+			executeContext: function(
+				inContextName,
+				inDependencies,
+				inCallback)
+			{
+					// if currentScriptDir is null, it means this is the first context()
+					// call after we were loaded via runScript, so fall back to the
+					// _initialModulePath we stored above
+				var contextPath = fw.currentScriptDir || _initialCallerPath;
 
-				// adjust the optional parameters 
-			if (typeof inContextName == "function") {
-				inCallback = inContextName;
-				inDependencies = [];
-				inContextName = prettifyPath(contextPath);
-			} else if (inContextName instanceof Array) {
-				inCallback = inDependencies;
-				inDependencies = inContextName;
-				inContextName = prettifyPath(contextPath);
-			} else if (typeof inDependencies == "function") {
-				inCallback = inDependencies;
-				inDependencies = [];
-			}
+					// adjust the optional parameters 
+				if (typeof inContextName == "function") {
+					inCallback = inContextName;
+					inDependencies = [];
+					inContextName = prettifyPath(contextPath);
+				} else if (inContextName instanceof Array) {
+					inCallback = inDependencies;
+					inDependencies = inContextName;
+					inContextName = prettifyPath(contextPath);
+				} else if (typeof inDependencies == "function") {
+					inCallback = inDependencies;
+					inDependencies = [];
+				}
 
-				// get the previously saved context with this name, or create a new
-				// one if it's the first time this name is being used 
-			var context = _contexts[inContextName] ||
-				(_contexts[inContextName] = new Context(inContextName, contextPath)),
-				previousContext = _stack[_stack.length - 1],
-				executingInSameContext = (previousContext && (previousContext.name == context.name));
+					// get the previously saved context with this name, or create a new
+					// one if it's the first time this name is being used 
+				var context = _contexts[inContextName] ||
+					(_contexts[inContextName] = new Context(inContextName, contextPath)),
+					previousContext = _stack[_stack.length - 1],
+					executingInSameContext = (previousContext && (previousContext.name == context.name));
 
-				// push the context onto the stack so we can support nested contexts
-			_stack.push(context);
+					// push the context onto the stack so we can support nested contexts
+				_stack.push(context);
 
-				// tell the context to execute the function the caller passed in and
-				// whether the same context is already loaded, which means it doesn't
-				// need to save off its globals 
-			var result = context.execute(inDependencies, inCallback, executingInSameContext);
+					// tell the context to execute the function the caller passed in and
+					// whether the same context is already loaded, which means it doesn't
+					// need to save off its globals 
+				var result = context.execute(inDependencies, inCallback, executingInSameContext);
 
-			_stack.pop();
+				_stack.pop();
 
-			return result;
-		};
-
-
-		execute.version = 1.0;
+				return result;
+			},
 
 
-		// ===================================================================
-		execute.get = function(
-			inContextName)
-		{
-			return _contexts[inContextName];
-		};
+			version: 1.0,
 
 
-		// ===================================================================
-		execute.getNames = function()
-		{
-			var names = [];
-
-			for (var name in _contexts) {
-				names.push(name);
-			}
-
-			return names;
-		};
+			// ===============================================================
+			get: function(
+				inContextName)
+			{
+				return _contexts[inContextName];
+			},
 
 
-		// ===================================================================
-		execute.destroy = function(
-			inContextName)
-		{
-				// default to the path of the current script if no name is passed in
-			inContextName = inContextName || prettifyPath(fw.currentScriptDir || _initialCallerPath);
-			var targetContext = _contexts[inContextName];
+			// ===============================================================
+			getNames: function()
+			{
+				var names = [];
 
-			if (targetContext) {
-				targetContext.destroy();
-				delete _contexts[inContextName];
-			}
-		};
+				for (var name in _contexts) {
+					names.push(name);
+				}
+
+				return names;
+			},
 
 
-		// ===================================================================
-		execute.destroyAll = function()
-		{
-			for (var name in _contexts) {
-				execute.destroy(name);
+			// ===============================================================
+			destroy: function(
+				inContextName)
+			{
+					// default to the path of the current script if no name is passed in
+				inContextName = inContextName || prettifyPath(fw.currentScriptDir || _initialCallerPath);
+				var targetContext = _contexts[inContextName];
+
+				if (targetContext) {
+					targetContext.destroy();
+					delete _contexts[inContextName];
+				}
+			},
+
+
+			// ===============================================================
+			destroyAll: function()
+			{
+				for (var name in _contexts) {
+					this.destroy(name);
+				}
 			}
 		};
 
 
 			// register our manager with the context global 
 		if (typeof context == "function") {
-			context.registerManager(execute);
+			context.registerManager(manager);
 		}
 	}
 
@@ -503,7 +513,7 @@
 			setupDispatcher();
 		} else {
 				// there's already a global context dispatcher, so just 
-				// define the manager for the local path
+				// define the manager for the current path
 			setupManager();
 		}
 	} catch (exception) {
