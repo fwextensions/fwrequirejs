@@ -95,7 +95,7 @@
 
 
 // ===========================================================================
-(function(context, console) {
+(function ContextSetup(console) {
 	try {
 		console.log.call;
 	} catch (exception) { 
@@ -127,6 +127,23 @@
 
 
 	// =======================================================================
+	function prettifyPath(
+		inPath)
+	{
+			// make sure there's a / on the end of the path, so that whether or
+			// not the path got passed in with one, we consistently have a /
+			// for the context name
+		inPath = path(inPath, "");
+
+			// to make a prettier context name, remove the path to the app
+			// Commands directory, or replace it with USER if it's in the
+			// user directory
+		return unescape(inPath.replace(fw.appJsCommandsDir, "")
+			.replace(fw.userJsCommandsDir, "USER"));
+	}
+
+
+	// =======================================================================
 	function setupDispatcher() 
 	{
 			// a hash to store each context manager by name
@@ -147,7 +164,7 @@
 
 
 		// ===================================================================
-		context = _global.context = function(
+		var context = _global.context = function context(
 			inConfig)
 		{
 				// if currentScriptDir is null, it means this is the first context()
@@ -160,7 +177,7 @@
 					// file.  so assume it's in a lib subfolder. 
 				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
 					_initialContextPath,
-				contextName = contextPath,
+				contextName = prettifyPath(contextPath),
 				manager;
 
 			if (inConfig && typeof inConfig == "object") {
@@ -171,7 +188,7 @@
 						contextPath = path(callerPath, contextPath);
 					}
 				
-					contextName = contextPath;
+					contextName = prettifyPath(contextPath, "");
 				}
 				
 				if (inConfig.context) {
@@ -210,7 +227,7 @@
 
 
 		// ===================================================================
-		context.getNames = function()
+		context.getNames = function getNames()
 		{
 			var names = [];
 
@@ -223,7 +240,7 @@
 
 
 		// ===================================================================
-		context.getManager = function(
+		context.getManager = function getManager(
 			inManagerPath)
 		{
 			return _managers[inManagerPath];
@@ -231,7 +248,7 @@
 
 
 		// ===================================================================
-		context.registerManager = function(
+		context.registerManager = function registerManager(
 			inManager)
 		{
 				// if _currentManagerName is falsy, we must not be in the middle of
@@ -243,7 +260,7 @@
 
 
 		// ===================================================================
-		context.destroy = function(
+		context.destroy = function destroy(
 			inPath)
 		{
 			var manager = _managers[inPath];
@@ -257,7 +274,7 @@
 
 
 		// ===================================================================
-		context.destroyAll = function()
+		context.destroyAll = function destroyAll()
 		{
 			for (var path in _managers) {
 				this.destroy(path);
@@ -277,17 +294,6 @@
 				// get a reference to the global object.  this would be "window"
 				// in a browser, but isn't named in Fireworks.
 			_global = (function() { return this; })();
-
-
-		// ===================================================================
-		function prettifyPath(
-			inPath)
-		{
-				// to make a prettier context name, remove the path to the app
-				// Commands directory, or replace it with USER if it's in the
-				// user directory
-			return inPath.replace(fw.appJsCommandsDir, "").replace(fw.userJsCommandsDir, "USER");
-		}
 
 
 		// ===================================================================
@@ -317,7 +323,7 @@
 		// ===================================================================
 		Context.prototype = {
 
-		destroy: function()
+		destroy: function destroy()
 		{
 			if (this.globals.require) {
 				delete this.globals.require.attach;
@@ -330,7 +336,7 @@
 
 
 		// ===================================================================
-		execute: function(
+		execute: function execute(
 			inDependencies,
 			inCallback,
 			inSameContext)
@@ -389,7 +395,7 @@
 
 
 		// ===================================================================
-		loadRequire: function()
+		loadRequire: function loadRequire()
 		{
 				// these are the three globals that require() creates.  loading them
 				// now won't restore any previous value (since this is the first time
@@ -416,7 +422,7 @@
 
 				// override the attach method on require to use a synchronous
 				// file load to load the module 
-			require.attach = function(
+			require.attach = function attach(
 				url, 
 				context, 
 				moduleName) 
@@ -432,6 +438,9 @@
 				fw.runScript(url);
 				context.completeLoad(moduleName);
 			};
+			
+				// save an easily accessible reference to our require instance
+			this.require = require;
 
 				// we only need to do this once per context
 			this.loadedRequire = true;
@@ -439,7 +448,7 @@
 
 
 		// ===================================================================
-		loadGlobal: function(
+		loadGlobal: function loadGlobal(
 			inGlobalName)
 		{
 			if (!(inGlobalName in this.preservedGlobals)) {
@@ -459,7 +468,7 @@
 
 
 		// ===================================================================
-		restoreGlobals: function()
+		restoreGlobals: function restoreGlobals()
 		{
 				// push the globals we'd previously preserved on to the stack and
 				// then create a fresh object to store the current globals.  calling
@@ -479,7 +488,7 @@
 
 
 		// ===================================================================
-		saveGlobals: function()
+		saveGlobals: function saveGlobals()
 		{
 			var name;
 
@@ -509,22 +518,22 @@
 
 		// ===================================================================
 		var manager = {
-			executeContext: function(
-				inContextName,
+			executeContext: function executeContext(
+				inConfig,
 				inDependencies,
 				inCallback)
 			{
 					// adjust the optional parameters 
-				if (typeof inContextName == "function") {
-					inCallback = inContextName;
+				if (typeof inConfig == "function") {
+					inCallback = inConfig;
 					inDependencies = [];
-					inContextName = prettifyPath(this.path);
-				} else if (inContextName instanceof Array) {
+					inConfig = prettifyPath(this.path);
+				} else if (inConfig instanceof Array) {
 					inCallback = inDependencies;
-					inDependencies = inContextName;
-					inContextName = prettifyPath(this.path);
-				} else if (inContextName && typeof inContextName == "object") {
-					inContextName = inContextName.context || prettifyPath(this.path);
+					inDependencies = inConfig;
+					inConfig = prettifyPath(this.path);
+				} else if (inConfig && typeof inConfig == "object") {
+					inConfig = inConfig.context || prettifyPath(this.path);
 				} 
 				
 				if (typeof inDependencies == "function") {
@@ -534,8 +543,8 @@
 
 					// get the previously saved context with this name, or create a new
 					// one if it's the first time this name is being used 
-				var context = _contexts[inContextName] ||
-					(_contexts[inContextName] = new Context(inContextName, this.path)),
+				var context = _contexts[inConfig] ||
+					(_contexts[inConfig] = new Context(inConfig, this.path)),
 					previousContext = _stack[_stack.length - 1],
 					executingInSameContext = (previousContext && (previousContext.name == context.name));
 
@@ -557,7 +566,7 @@
 
 
 			// ===============================================================
-			get: function(
+			get: function get(
 				inContextName)
 			{
 				return _contexts[inContextName];
@@ -565,7 +574,7 @@
 
 
 			// ===============================================================
-			getNames: function()
+			getNames: function getNames()
 			{
 				var names = [];
 
@@ -578,7 +587,7 @@
 
 
 			// ===============================================================
-			destroy: function(
+			destroy: function destroy(
 				inContextName)
 			{
 					// default to the path of the current script if no name is passed in
@@ -593,7 +602,7 @@
 
 
 			// ===============================================================
-			destroyAll: function()
+			destroyAll: function destroyAll()
 			{
 				for (var name in _contexts) {
 					this.destroy(name);
@@ -624,4 +633,5 @@
 			throw exception;
 		}
 	}
-})(context, console); // pass the existing globals, if any, into our module 
+})(typeof console == "object" && console ? console : null); 
+// pass the existing console global, if any, into our module 
