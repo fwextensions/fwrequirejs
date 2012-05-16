@@ -17,15 +17,23 @@
 			having a module define a name for itself and then move the module
 				to a different folder has poor error message 
 
-		- should we always assume context.js is in /lib/?
-			let it be part of a configuration object
+		- maybe the name should be passed as a context property on the config
 
-		- support configuration objects being passed in
+		- add currently executing path to context global 
+			so in case fw.currentScriptDir gets messed up, the module still 
+			knows where it is
+
+		- maybe get rid of manager object and just have the dispatcher manage the
+			Context instances
+			how to handle stack?  maybe have context.execute handle it
+
+		- maybe just call it require(), in fwrequire.js
+
+		- calling define() inside a context only works if using a named context
+			otherwise, it thinks the root dir is /lib/lib/
 
 		- test defining JSML in a panel and requiring a library defined
 			in Commands
-
-		- support passing a path to the lib directory for the context name? 
 
 		- it's possible to have named and unnamed managers at the same path
 			is that a problem? 
@@ -55,6 +63,15 @@
 		- probably don't need to pass path into register
 
 	Done:
+		- support configuration objects being passed in
+
+		- context name should be defined by the path to the root folder, not
+			the path of the caller
+			so two .jsf files in the same directory could have different contexts
+
+		- should we always assume context.js is in /lib/?
+			let it be part of a configuration object
+
 		- the manager should probably be its own class
 			but it's a singleton for a given path 
 
@@ -85,8 +102,29 @@
 			log: function() {}
 		};
 	}
-	
 
+
+	// =======================================================================
+	function path()
+	{
+		var path = arguments[0];
+
+		for (var i = 1; i < arguments.length; i++) {
+			var lastChar = path.slice(-1);
+
+				// make sure there is exactly one / between each argument
+			if (lastChar != "/" && arguments[i][0] != "/") {
+				path += "/";
+			}
+
+			path += arguments[i];
+		}
+
+		return path;
+	}
+
+
+	// =======================================================================
 	function setupDispatcher() {
 			// a hash to store each context manager by name
 		var _managers = {},
@@ -97,7 +135,7 @@
 				// because it will be empty the first time context() is called after
 				// we're first loaded.  the code that's calling us is in the directory
 				// above the /lib/
-			_initialLibPath = fw.currentScriptDir,
+			_initialContextPath = fw.currentScriptDir,
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir),
 				// this module global stores the requested manager path or name
 				// while the manager code is loaded, so we know what to call it
@@ -107,27 +145,46 @@
 
 		// ===================================================================
 		context = _global.context = function(
-			inManagerName)
+			inName,
+			inConfig)
 		{
 				// if currentScriptDir is null, it means this is the first context()
 				// call after we were loaded via runScript, so fall back to the
 				// _initialCallerPath we stored above
 			var callerPath = fw.currentScriptDir || _initialCallerPath,
-				contextName = typeof inManagerName == "string" ? inManagerName : callerPath,
-				manager = _managers[contextName];
+				contextName,
+					// if there's a currentScriptDir, then that means the 
+					// context has already been set up, so we don't know where
+					// the context.js file is located relative to the calling
+					// file.  so assume it's in a lib subfolder. 
+				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
+					_initialContextPath,
+				manager;
+
+			if (typeof inConfig == "object" && inConfig.baseUrl) {
+				contextPath = inConfig.baseUrl;
+
+				if (contextPath.indexOf("file://") != 0) {
+					contextPath = path(callerPath, contextPath);
+				}
+			}
+			
+			contextName = typeof inName == "string" ? inName : contextPath;
+			manager = _managers[contextName];
 
 			if (!manager) {
 					// call the version of context.js at this path
-				var managerPath = callerPath + "/lib/context.js";
+				var contextJSPath = path(contextPath, "context.js");
 
-				if (Files.exists(managerPath)) {
+				if (Files.exists(contextJSPath)) {
 						// save the current contextName, which we'll use when the
 						// manager calls registerManager after we run its JS
 					_currentManagerName = contextName;
-					fw.runScript(managerPath);
+					fw.runScript(contextJSPath);
 
 						// the manager should now be registered
 					manager = _managers[contextName];
+					manager.path = contextPath;
 					_currentManagerName = "";
 				}
 			}
@@ -209,13 +266,7 @@
 			_stack = [],
 				// get a reference to the global object.  this would be "window"
 				// in a browser, but isn't named in Fireworks.
-			_global = (function() { return this; })(),
-				// we have to keep track of the currentScriptDir when we're first loaded
-				// because it will be empty the first time context() is called after
-				// we're first loaded.  the code that's calling us is in the directory
-				// above the /lib/.
-			_initialLibPath = fw.currentScriptDir,
-			_initialCallerPath = Files.getDirectory(fw.currentScriptDir);
+			_global = (function() { return this; })();
 
 
 		// ===================================================================
@@ -288,6 +339,13 @@
 			}
 
 			try {
+				if (inDependencies && typeof inDependencies == "object") {
+						// we don't want the baseUrl making it into the require()
+						// call, since we already passed it a baseUrl when we
+						// first loaded it
+					delete inDependencies.baseUrl;
+				}
+				
 					// call this context's instance of the require global, which
 					// should be loaded or restored by now 
 				var result = require(inDependencies, inCallback);
@@ -326,19 +384,20 @@
 			this.loadGlobal("require");
 			this.loadGlobal("requirejs");
 
-			var libPath = this.path + "/lib/";
-
 				// now instantiate the require library in this context's path
-			fw.runScript(libPath + "require.js");
+			fw.runScript(path(this.path, "require.js"));
 
 			try {
 					// tell require where to look for our files 
-				require({ baseUrl: libPath });
+				require({ baseUrl: this.path });
 			} catch (exception) { 
 					// the require library must not be installed 
-				console.log("ERROR: require.js not found at", libPath);
+				console.log("ERROR in context", this.name.quote() + ":", "require.js was not found in", this.path);
 				return;
 			}
+			
+				// create a reference to our path for the attach method
+			var libPath = this.path;
 
 				// override the attach method on require to use a synchronous
 				// file load to load the module 
@@ -352,9 +411,9 @@
 						// require tries to load from a path relative to the
 						// HTML page, which doesn't exist.  so force it to use
 						// our lib path. 
-					url = libPath + url;
+					url = path(libPath, url);
 				}
-				
+
 				fw.runScript(url);
 				context.completeLoad(moduleName);
 			};
@@ -440,20 +499,15 @@
 				inDependencies,
 				inCallback)
 			{
-					// if currentScriptDir is null, it means this is the first context()
-					// call after we were loaded via runScript, so fall back to the
-					// _initialModulePath we stored above
-				var contextPath = fw.currentScriptDir || _initialCallerPath;
-
 					// adjust the optional parameters 
 				if (typeof inContextName == "function") {
 					inCallback = inContextName;
 					inDependencies = [];
-					inContextName = prettifyPath(contextPath);
+					inContextName = prettifyPath(this.path);
 				} else if (inContextName instanceof Array) {
 					inCallback = inDependencies;
 					inDependencies = inContextName;
-					inContextName = prettifyPath(contextPath);
+					inContextName = prettifyPath(this.path);
 				} else if (typeof inDependencies == "function") {
 					inCallback = inDependencies;
 					inDependencies = [];
@@ -462,7 +516,7 @@
 					// get the previously saved context with this name, or create a new
 					// one if it's the first time this name is being used 
 				var context = _contexts[inContextName] ||
-					(_contexts[inContextName] = new Context(inContextName, contextPath)),
+					(_contexts[inContextName] = new Context(inContextName, this.path)),
 					previousContext = _stack[_stack.length - 1],
 					executingInSameContext = (previousContext && (previousContext.name == context.name));
 
@@ -509,7 +563,7 @@
 				inContextName)
 			{
 					// default to the path of the current script if no name is passed in
-				inContextName = inContextName || prettifyPath(fw.currentScriptDir || _initialCallerPath);
+				inContextName = inContextName || prettifyPath(this.path);
 				var targetContext = _contexts[inContextName];
 
 				if (targetContext) {
