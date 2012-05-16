@@ -38,6 +38,8 @@
 		- it's possible to have named and unnamed managers at the same path
 			is that a problem? 
 
+		- shuld be possible to pass in a bare string to require just one module 
+
 		- do we need nested contexts? 
 			yes, if a command panel wants to require a library that's defined
 			in /Commands, and that library doesn't export a global 
@@ -125,7 +127,8 @@
 
 
 	// =======================================================================
-	function setupDispatcher() {
+	function setupDispatcher() 
+	{
 			// a hash to store each context manager by name
 		var _managers = {},
 				// get a reference to the global object.  this would be "window"
@@ -145,31 +148,37 @@
 
 		// ===================================================================
 		context = _global.context = function(
-			inName,
 			inConfig)
 		{
 				// if currentScriptDir is null, it means this is the first context()
 				// call after we were loaded via runScript, so fall back to the
 				// _initialCallerPath we stored above
 			var callerPath = fw.currentScriptDir || _initialCallerPath,
-				contextName,
 					// if there's a currentScriptDir, then that means the 
 					// context has already been set up, so we don't know where
 					// the context.js file is located relative to the calling
 					// file.  so assume it's in a lib subfolder. 
 				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
 					_initialContextPath,
+				contextName = contextPath,
 				manager;
 
-			if (typeof inConfig == "object" && inConfig.baseUrl) {
-				contextPath = inConfig.baseUrl;
+			if (inConfig && typeof inConfig == "object") {
+				if (inConfig.baseUrl) {
+					contextPath = inConfig.baseUrl;
 
-				if (contextPath.indexOf("file://") != 0) {
-					contextPath = path(callerPath, contextPath);
+					if (contextPath.indexOf("file://") != 0) {
+						contextPath = path(callerPath, contextPath);
+					}
+				
+					contextName = contextPath;
+				}
+				
+				if (inConfig.context) {
+					contextName = inConfig.context;
 				}
 			}
 			
-			contextName = typeof inName == "string" ? inName : contextPath;
 			manager = _managers[contextName];
 
 			if (!manager) {
@@ -260,7 +269,8 @@
 
 
 	// =======================================================================
-	function setupManager() {
+	function setupManager() 
+	{
 			// a hash to store each context we're managing by name
 		var _contexts = {},
 			_stack = [],
@@ -337,6 +347,11 @@
 					// require is already loaded
 				this.loadRequire();
 			}
+
+				// we can't call this "name", because context.name is the name
+				// of the function 
+			context.currentName = this.name;
+			context.currentPath = this.path;
 
 			try {
 				if (inDependencies && typeof inDependencies == "object") {
@@ -508,7 +523,11 @@
 					inCallback = inDependencies;
 					inDependencies = inContextName;
 					inContextName = prettifyPath(this.path);
-				} else if (typeof inDependencies == "function") {
+				} else if (inContextName && typeof inContextName == "object") {
+					inContextName = inContextName.context || prettifyPath(this.path);
+				} 
+				
+				if (typeof inDependencies == "function") {
 					inCallback = inDependencies;
 					inDependencies = [];
 				}
