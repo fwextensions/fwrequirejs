@@ -17,37 +17,29 @@
 			having a module define a name for itself and then move the module
 				to a different folder has poor error message 
 
-		- maybe the name should be passed as a context property on the config
+		- should pass all the params to the context, so it can decide how to 
+			use them
 
-		- add currently executing path to context global 
-			so in case fw.currentScriptDir gets messed up, the module still 
-			knows where it is
+		- store the caller's currentScriptDir on context, separate from current
+			context path 
 
-		- maybe get rid of manager object and just have the dispatcher manage the
-			Context instances
-			how to handle stack?  maybe have context.execute handle it
+		- test using packages and main.js
+
+		- test setting catchError.define = true
 
 		- maybe just call it require(), in fwrequire.js
+			but the real require would shadow the context one when executing
+			or fwrequire()
 
 		- calling define() inside a context only works if using a named context
 			otherwise, it thinks the root dir is /lib/lib/
 
-		- test defining JSML in a panel and requiring a library defined
-			in Commands
-
 		- it's possible to have named and unnamed managers at the same path
 			is that a problem? 
-
-		- shuld be possible to pass in a bare string to require just one module 
 
 		- do we need nested contexts? 
 			yes, if a command panel wants to require a library that's defined
 			in /Commands, and that library doesn't export a global 
-
-		- move loadRequire to Manager constructor?
-
-		- store the path to the lib folder on the context, not the path to the
-			parent folder
 
 		- should have just one instance of require per manager?
 			no, because then one path could have only one context
@@ -62,9 +54,27 @@
 
 		- throw error if addManager wasn't called? 
 
+	Done:
+		- shuld be possible to pass in a bare string to require just one module 
+			no, that's only to get synchronous access to an already loaded module
+
 		- probably don't need to pass path into register
 
-	Done:
+		- store the path to the lib folder on the context, not the path to the
+			parent folder
+
+		- test defining JSML in a panel and requiring a library defined
+			in Commands
+
+		- maybe get rid of manager object and just have the dispatcher manage the
+			Context instances
+
+		- add currently executing path to context global 
+			so in case fw.currentScriptDir gets messed up, the module still 
+			knows where it is
+
+		- maybe the name should be passed as a context property on the config
+
 		- support configuration objects being passed in
 
 		- context name should be defined by the path to the root folder, not
@@ -85,7 +95,7 @@
 
 		- files at two different paths can't use the same context because this
 			context manager just looks at the caller's path and maps that to 
-			an manager
+			a manager
 			doesn't look at any name passed in
 
 		- see if passing in just a function with no dependencies works
@@ -160,7 +170,7 @@
 				// this module global stores the requested manager path or name
 				// while the manager code is loaded, so we know what to call it
 				// when it calls registerManager()
-			_currentManagerName = "";
+			_currentManagerPath = "";
 
 
 		// ===================================================================
@@ -177,41 +187,38 @@
 					// file.  so assume it's in a lib subfolder. 
 				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
 					_initialContextPath,
-				contextName = prettifyPath(contextPath),
 				manager;
 
-			if (inConfig && typeof inConfig == "object") {
+				// make sure inConfig is an object but not an array 
+			if (inConfig && typeof inConfig == "object" && !(inConfig instanceof Array)) {
 				if (inConfig.baseUrl) {
 					contextPath = inConfig.baseUrl;
 
 					if (contextPath.indexOf("file://") != 0) {
 						contextPath = path(callerPath, contextPath);
 					}
-				
-					contextName = prettifyPath(contextPath, "");
 				}
 				
-				if (inConfig.context) {
-					contextName = inConfig.context;
-				}
 			}
 			
-			manager = _managers[contextName];
+				// make sure the contextPath ends in a /
+			contextPath = path(contextPath, "");
+			manager = _managers[contextPath];
 
 			if (!manager) {
 					// call the version of context.js at this path
 				var contextJSPath = path(contextPath, "context.js");
 
 				if (Files.exists(contextJSPath)) {
-						// save the current contextName, which we'll use when the
+						// save the current contextPath, which we'll use when the
 						// manager calls registerManager after we run its JS
-					_currentManagerName = contextName;
+					_currentManagerPath = contextPath;
 					fw.runScript(contextJSPath);
 
 						// the manager should now be registered
-					manager = _managers[contextName];
+					manager = _managers[contextPath];
 					manager.path = contextPath;
-					_currentManagerName = "";
+					_currentManagerPath = "";
 				}
 			}
 
@@ -219,6 +226,8 @@
 					// dispatch the context call to the manager for the 
 					// requested context
 				manager.executeContext.apply(manager, arguments);
+			} else {
+				alert(unescape(contextJSPath).quote() + " could not be found.");
 			}
 		};
 
@@ -227,7 +236,7 @@
 
 
 		// ===================================================================
-		context.getNames = function getNames()
+		context.getManagerNames = function getNames()
 		{
 			var names = [];
 
@@ -253,8 +262,8 @@
 		{
 				// if _currentManagerName is falsy, we must not be in the middle of
 				// calling runScript on an manager, so ignore this call 
-			if (_currentManagerName) {
-				_managers[_currentManagerName] = inManager;
+			if (_currentManagerPath) {
+				_managers[_currentManagerPath] = inManager;
 			}
 		};
 
@@ -322,197 +331,195 @@
 
 		// ===================================================================
 		Context.prototype = {
-
-		destroy: function destroy()
-		{
-			if (this.globals.require) {
-				delete this.globals.require.attach;
-			}
-
-				// make double-sure that references to the stored globals are broken
-			this.globals = null;
-			this.preservedGlobals = null;
-		},
-
-
-		// ===================================================================
-		execute: function execute(
-			inDependencies,
-			inCallback,
-			inSameContext)
-		{
-				// before executing the callback, restore our previously saved 
-				// globals, but only if a different context was previously loaded
-			if (!inSameContext) {
-				this.restoreGlobals();
-			}
-
-			if (!this.loadedRequire) {
-					// we've never been executed before, so load the require library
-					// before the callback is called, since it will expect that 
-					// require is already loaded
-				this.loadRequire();
-			}
-
-				// we can't call this "name", because context.name is the name
-				// of the function 
-			context.currentName = this.name;
-			context.currentPath = this.path;
-
-			try {
-				if (inDependencies && typeof inDependencies == "object") {
-						// we don't want the baseUrl making it into the require()
-						// call, since we already passed it a baseUrl when we
-						// first loaded it
-					delete inDependencies.baseUrl;
-				}
-				
-					// call this context's instance of the require global, which
-					// should be loaded or restored by now 
-				var result = require(inDependencies, inCallback);
-			} catch (exception) {
-				if (exception.lineNumber) {
-					alert(["Error in context: " + this.name, exception.message,
-						exception.lineNumber, exception.fileName].join("\n"));
-				} else {
-						// there's no error info on the exception, so show an
-						// alert that there was an error in this context, then
-						// throw the exception to let FW display a more 
-						// meaningful error message
-					alert("Error in context: " + this.name);
-					throw exception;
-				}
-			}
-
-				// save the current values of our globals, which will also restore
-				// their previously preserved values
-			if (!inSameContext) {
-				this.saveGlobals();
-			}
-
-			return result;
-		},
-
-
-		// ===================================================================
-		loadRequire: function loadRequire()
-		{
-				// these are the three globals that require() creates.  loading them
-				// now won't restore any previous value (since this is the first time
-				// we're loading require), but it ensures that they'll be saved when
-				// we're done executing.
-			this.loadGlobal("define");
-			this.loadGlobal("require");
-			this.loadGlobal("requirejs");
-
-				// now instantiate the require library in this context's path
-			fw.runScript(path(this.path, "require.js"));
-
-			try {
-					// tell require where to look for our files 
-				require({ baseUrl: this.path });
-			} catch (exception) { 
-					// the require library must not be installed 
-				console.log("ERROR in context", this.name.quote() + ":", "require.js was not found in", this.path);
-				return;
-			}
-			
-				// create a reference to our path for the attach method
-			var libPath = this.path;
-
-				// override the attach method on require to use a synchronous
-				// file load to load the module 
-			require.attach = function attach(
-				url, 
-				context, 
-				moduleName) 
+			destroy: function destroy()
 			{
-				if (url.indexOf("file://") != 0) {
-						// the required module name must end in .js, which 
-						// require tries to load from a path relative to the
-						// HTML page, which doesn't exist.  so force it to use
-						// our lib path. 
-					url = path(libPath, url);
+				if (this.globals.require) {
+					delete this.globals.require.attach;
 				}
 
-				fw.runScript(url);
-				context.completeLoad(moduleName);
-			};
-			
-				// save an easily accessible reference to our require instance
-			this.require = require;
-
-				// we only need to do this once per context
-			this.loadedRequire = true;
-		},
+					// make double-sure that references to the stored globals are broken
+				this.globals = null;
+				this.preservedGlobals = null;
+			},
 
 
-		// ===================================================================
-		loadGlobal: function loadGlobal(
-			inGlobalName)
-		{
-			if (!(inGlobalName in this.preservedGlobals)) {
-					// preserve the current value of inGlobalName
-				this.preservedGlobals[inGlobalName] = _global[inGlobalName];
+			// ===============================================================
+			execute: function execute(
+				inDependencies,
+				inCallback,
+				inSameContext)
+			{
+					// before executing the callback, restore our previously saved 
+					// globals, but only if a different context was previously loaded
+				if (!inSameContext) {
+					this.restoreGlobals();
+				}
 
-				this.globals[inGlobalName] = this.globals[inGlobalName];
+				if (!this.loadedRequire) {
+						// we've never been executed before, so load the require library
+						// before the callback is called, since it will expect that 
+						// require is already loaded
+					this.loadRequire();
+				}
+
+					// we can't call this "name", because context.name is the name
+					// of the context function 
+				context.currentName = this.name;
+				context.currentPath = this.path;
+
+				try {
+					if (inDependencies && typeof inDependencies == "object") {
+							// we don't want the baseUrl making it into the require()
+							// call, since we already passed it a baseUrl when we
+							// first loaded it
+						delete inDependencies.baseUrl;
+					}
+
+						// call this context's instance of the require global, which
+						// should be loaded or restored by now 
+					var result = require(inDependencies, inCallback);
+				} catch (exception) {
+					if (exception.lineNumber) {
+						alert(["Error in context: " + this.name, exception.message,
+							exception.lineNumber, exception.fileName].join("\n"));
+					} else {
+							// there's no error info on the exception, so show an
+							// alert that there was an error in this context, then
+							// throw the exception to let FW display a more 
+							// meaningful error message
+						alert("Error in context: " + this.name);
+						throw exception;
+					}
+				}
+
+					// save the current values of our globals, which will also restore
+					// their previously preserved values
+				if (!inSameContext) {
+					this.saveGlobals();
+				}
+
+				return result;
+			},
+
+
+			// ===============================================================
+			loadRequire: function loadRequire()
+			{
+					// these are the three globals that require() creates.  loading them
+					// now won't restore any previous value (since this is the first time
+					// we're loading require), but it ensures that they'll be saved when
+					// we're done executing.
+				this.loadGlobal("define");
+				this.loadGlobal("require");
+				this.loadGlobal("requirejs");
+
+					// now instantiate the require library in this context's path
+				fw.runScript(path(this.path, "require.js"));
+
+				try {
+						// tell require where to look for our files 
+					require({ baseUrl: this.path });
+				} catch (exception) { 
+						// the require library must not be installed 
+					console.log("ERROR in context", this.name.quote() + ":", "require.js was not found in", this.path);
+					return;
+				}
+
+					// create a reference to our path for the attach method
+				var libPath = this.path;
+
+					// override the attach method on require to use a synchronous
+					// file load to load the module 
+				require.attach = function attach(
+					url, 
+					context, 
+					moduleName) 
+				{
+					if (url.indexOf("file://") != 0) {
+							// the required module name must end in .js, which 
+							// require tries to load from a path relative to the
+							// HTML page, which doesn't exist.  so force it to use
+							// our lib path. 
+						url = path(libPath, url);
+					}
+
+					fw.runScript(url);
+					context.completeLoad(moduleName);
+				};
+
+					// save an easily accessible reference to our require instance
+				this.require = require;
+
+					// we only need to do this once per context
+				this.loadedRequire = true;
+			},
+
+
+			// ===============================================================
+			loadGlobal: function loadGlobal(
+				inGlobalName)
+			{
+				if (!(inGlobalName in this.preservedGlobals)) {
+						// preserve the current value of inGlobalName
+					this.preservedGlobals[inGlobalName] = _global[inGlobalName];
+
+					this.globals[inGlobalName] = this.globals[inGlobalName];
+				}
+
+					// make our saved global available in the root context.  it'll be an
+					// empty object if this is the first time the global is being used
+					// in this context.
+				_global[inGlobalName] = this.globals[inGlobalName];
+
+				return _global[inGlobalName];
+			},
+
+
+			// ===============================================================
+			restoreGlobals: function restoreGlobals()
+			{
+					// push the globals we'd previously preserved on to the stack and
+					// then create a fresh object to store the current globals.  calling
+					// loadGlobal will store the current global in this.preservedGlobals.
+					// we need to keep a stack of these preserved globals because one
+					// context may call another.  so if A > B > C > A, the second instance
+					// of context A needs to preserve the globals created in C, while the
+					// first instance still preserves whatever globals were in place
+					// when it was called. 
+				this.preservedGlobalsStack.push(this.preservedGlobals);
+				this.preservedGlobals = {};
+
+				for (var name in this.globals) {
+					this.loadGlobal(name);
+				}
+			},
+
+
+			// ===============================================================
+			saveGlobals: function saveGlobals()
+			{
+				var name;
+
+				for (name in this.globals) {
+						// update our stored reference to this global before deleting
+						// it, in case this is the first time through the context and the
+						// code that modified the global didn't use the empty object we
+						// created when loadGlobal() was initially called.  for instance,
+						// dojo.provide("foo"); foo = function() { ... }; replaces the
+						// foo global created when dojo.provide("foo") was called.
+					this.globals[name] = _global[name];
+					delete _global[name];
+				}
+
+					// restore all the globals we had preserved
+				for (name in this.preservedGlobals) {
+					_global[name] = this.preservedGlobals[name];
+				}
+
+					// now that we've restored all of these globals, pop back to the
+					// next set of preserved globals on the stack 
+				this.preservedGlobals = this.preservedGlobalsStack.pop();
 			}
-
-				// make our saved global available in the root context.  it'll be an
-				// empty object if this is the first time the global is being used
-				// in this context.
-			_global[inGlobalName] = this.globals[inGlobalName];
-
-			return _global[inGlobalName];
-		},
-
-
-		// ===================================================================
-		restoreGlobals: function restoreGlobals()
-		{
-				// push the globals we'd previously preserved on to the stack and
-				// then create a fresh object to store the current globals.  calling
-				// loadGlobal will store the current global in this.preservedGlobals.
-				// we need to keep a stack of these preserved globals because one
-				// context may call another.  so if A > B > C > A, the second instance
-				// of context A needs to preserve the globals created in C, while the
-				// first instance still preserves whatever globals were in place
-				// when it was called. 
-			this.preservedGlobalsStack.push(this.preservedGlobals);
-			this.preservedGlobals = {};
-
-			for (var name in this.globals) {
-				this.loadGlobal(name);
-			}
-		},
-
-
-		// ===================================================================
-		saveGlobals: function saveGlobals()
-		{
-			var name;
-
-			for (name in this.globals) {
-					// update our stored reference to this global before deleting
-					// it, in case this is the first time through the context and the
-					// code that modified the global didn't use the empty object we
-					// created when loadGlobal() was initially called.  for instance,
-					// dojo.provide("foo"); foo = function() { ... }; replaces the
-					// foo global created when dojo.provide("foo") was called.
-				this.globals[name] = _global[name];
-				delete _global[name];
-			}
-
-				// restore all the globals we had preserved
-			for (name in this.preservedGlobals) {
-				_global[name] = this.preservedGlobals[name];
-			}
-
-				// now that we've restored all of these globals, pop back to the
-				// next set of preserved globals on the stack 
-			this.preservedGlobals = this.preservedGlobalsStack.pop();
-		}
-
 		}; // end of Context.prototype
 
 
@@ -528,13 +535,13 @@
 					inCallback = inConfig;
 					inDependencies = [];
 					inConfig = prettifyPath(this.path);
-				} else if (inConfig instanceof Array) {
+				} else if (inConfig instanceof Array || typeof inConfig == "string") {
 					inCallback = inDependencies;
 					inDependencies = inConfig;
 					inConfig = prettifyPath(this.path);
 				} else if (inConfig && typeof inConfig == "object") {
 					inConfig = inConfig.context || prettifyPath(this.path);
-				} 
+				}
 				
 				if (typeof inDependencies == "function") {
 					inCallback = inDependencies;
