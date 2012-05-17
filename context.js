@@ -11,6 +11,20 @@
 
    ======================================================================== */
 
+/*
+	How it works
+
+	the first fwrequire.js is called twice, once to set up global require dispatcher
+	then to instantiate a Context
+	calls to require() from different paths will then call the fwrequire.js in 
+	that path
+	implementations of the Context that dispatches calls to require modules can
+	be kept separate
+	only the dispatcher is shared across all contexts
+	files that define modules should never be called directly with runScript
+	need to check for the existence of require, and then call your fwrequire.js
+	if it's not there 
+*/
 
 /*
 	To do:
@@ -25,10 +39,13 @@
 
 		- do we still need the preservedGlobalsStack?
 
+		- set up proper unit tests, maybe with vows.js
+
 		- put _global on Context prototype
 
-		- store the caller's currentScriptDir on context, separate from current
-			context path 
+		- we probably don't need the dummy log if there's only one log call
+
+		- show error if a module path starts with http://
 
 		- add require.get to support synchronous module loading 
 
@@ -60,6 +77,9 @@
 		- throw error if addManager wasn't called? 
 
 	Done:
+		- store the caller's currentScriptDir on context, separate from current
+			context path 
+
 		- combine manager and Context into a singleton
 
 		- does the manager need to manage individual contexts? 
@@ -174,7 +194,6 @@
 				// above the /lib/
 			_initialContextPath = fw.currentScriptDir,
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir),
-			_initialScriptFileName = fw.currentScriptFileName,
 				// this module global stores the requested Context path 
 				// while the Context code is loaded, so we know what to call it
 				// when it calls registerContext()
@@ -232,7 +251,6 @@
 						// add information about the caller to the context
 					context.path = contextPath;
 					context.currentScriptDir = callerPath;
-					context.currentScriptFileName = _initialScriptFileName;
 				}
 			}
 
@@ -401,9 +419,13 @@
 					// these names.
 				require.currentContextName = inConfig.context;
 				require.currentContextPath = inConfig.baseUrl;
+				
+					// if fwrequire.js was loaded by the caller, then after the
+					// runScript line, fw.currentScriptDir will be null.  the
+					// dispatchRequire function stored the caller's original 
+					// path, so store that on require so that the module doesn't
+					// have to save off its path before calling runScript.
 				require.currentScriptDir = this.currentScriptDir;
-// currentScriptFileName is context.js, not the caller				
-//				require.currentScriptFileName = this.currentScriptFileName;
 
 				try {
 						// call this context's instance of the require global, which
