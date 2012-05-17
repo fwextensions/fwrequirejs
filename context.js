@@ -21,20 +21,16 @@
 
 		- trace doesn't work inside context()
 
-		- maybe always pass a config into require, using the context's name
-			and path as the default vaules 
+		- should Context be a singleton?
 
-		- should pass all the params to the context, so it can decide how to 
-			use them
+		- do we still need the preservedGlobalsStack?
+
+		- put _global on Context prototype
 
 		- store the caller's currentScriptDir on context, separate from current
 			context path 
 
 		- add require.get to support synchronous module loading 
-
-		- does the manager need to manage individual contexts? 
-			or should require do it? 
-			the manager and the context could be combined then
 
 		- test using packages and main.js
 
@@ -64,6 +60,18 @@
 		- throw error if addManager wasn't called? 
 
 	Done:
+		- combine manager and Context into a singleton
+
+		- does the manager need to manage individual contexts? 
+			or should require do it? 
+			the manager and the context could be combined then
+
+		- should pass all the params to the context, so it can decide how to 
+			use them
+
+		- maybe always pass a config into require, using the context's name
+			and path as the default vaules 
+
 		- maybe just call it require(), in fwrequire.js
 			but the real require would shadow the context one when executing
 			or fwrequire()
@@ -121,7 +129,7 @@
 
 
 // ===========================================================================
-(function ContextSetup(console) {
+(function FWRequireSetup(console) {
 	try {
 		console.log.call;
 	} catch (exception) { 
@@ -153,27 +161,10 @@
 
 
 	// =======================================================================
-	function prettifyPath(
-		inPath)
-	{
-			// make sure there's a / on the end of the path, so that whether or
-			// not the path got passed in with one, we consistently have a /
-			// for the context name
-		inPath = path(inPath, "");
-
-			// to make a prettier context name, remove the path to the app
-			// Commands directory, or replace it with USER if it's in the
-			// user directory
-		return unescape(inPath.replace(fw.appJsCommandsDir, "")
-			.replace(fw.userJsCommandsDir, "USER"));
-	}
-
-
-	// =======================================================================
 	function setupDispatcher() 
 	{
-			// a hash to store each context manager by name
-		var _managers = {},
+			// a hash to store each Context by name
+		var _contexts = {},
 				// get a reference to the global object.  this would be "window"
 				// in a browser, but isn't named in Fireworks.
 			_global = (function() { return this; })(),
@@ -183,14 +174,15 @@
 				// above the /lib/
 			_initialContextPath = fw.currentScriptDir,
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir),
-				// this module global stores the requested manager path or name
-				// while the manager code is loaded, so we know what to call it
-				// when it calls registerManager()
-			_currentManagerPath = "";
+			_initialScriptFileName = fw.currentScriptFileName,
+				// this module global stores the requested Context path 
+				// while the Context code is loaded, so we know what to call it
+				// when it calls registerContext()
+			_currentContextPath = "";
 
 
 		// ===================================================================
-		var context = _global.require = function dispatchRequire(
+		var dispatchRequire = _global.require = function dispatchRequire(
 			inConfig)
 		{
 				// if currentScriptDir is null, it means this is the first context()
@@ -203,11 +195,13 @@
 					// file.  so assume it's in a lib subfolder. 
 				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
 					_initialContextPath,
-				manager;
+				context;
 
 				// make sure inConfig is an object but not an array 
 			if (inConfig && typeof inConfig == "object" && !(inConfig instanceof Array)) {
 				if (inConfig.baseUrl) {
+						// use the config's baseUrl as the path to the Context
+						// code, and make sure it's absolute
 					contextPath = inConfig.baseUrl;
 
 					if (contextPath.indexOf("file://") != 0) {
@@ -216,47 +210,52 @@
 				}
 			}
 			
-				// make sure the contextPath ends in a /
+				// make sure the contextPath ends in a / and get the relevant
+				// context
 			contextPath = path(contextPath, "");
-			manager = _managers[contextPath];
+			context = _contexts[contextPath];
 
-			if (!manager) {
+			if (!context) {
 					// call the version of context.js at this path
 				var contextJSPath = path(contextPath, "context.js");
 
 				if (Files.exists(contextJSPath)) {
 						// save the current contextPath, which we'll use when the
-						// manager calls registerManager after we run its JS
-					_currentManagerPath = contextPath;
+						// Context calls registerContext after we run its JS
+					_currentContextPath = contextPath;
 					fw.runScript(contextJSPath);
-
-						// the manager should now be registered
-					manager = _managers[contextPath];
-					manager.path = contextPath;
-					_currentManagerPath = "";
+					
+						// the context should now be registered
+					context = _contexts[contextPath];
+					_currentContextPath = "";
+					
+						// add information about the caller to the context
+					context.path = contextPath;
+					context.currentScriptDir = callerPath;
+					context.currentScriptFileName = _initialScriptFileName;
 				}
 			}
 
-			if (manager) {
-					// dispatch the context call to the manager for the 
-					// requested context
-				manager.executeContext.apply(manager, arguments);
+			if (context) {
+					// dispatch the execute call to the Context instance for the 
+					// requested path
+				context.execute.apply(context, arguments);
 			} else {
 				alert(unescape(contextJSPath).quote() + " could not be found.");
 			}
 		};
 
 
-		context.version = 1.0;
+		dispatchRequire.version = 1.0;
 
 
 		// ===================================================================
-		context.getManagerPaths = function getManagerPaths()
+		dispatchRequire.getContextPaths = function getContextPaths()
 		{
 			var paths = [];
 
-			for (var name in _managers) {
-				paths.push(name);
+			for (var path in _contexts) {
+				paths.push(path);
 			}
 
 			return paths;
@@ -264,75 +263,63 @@
 
 
 		// ===================================================================
-		context.getManager = function getManager(
-			inManagerPath)
-		{
-			return _managers[inManagerPath];
-		};
-
-
-		// ===================================================================
-		context.registerManager = function registerManager(
-			inManager)
-		{
-				// if _currentManagerPath is falsy, we must not be in the middle 
-				// of calling runScript on an manager, so ignore this call 
-			if (_currentManagerPath) {
-				_managers[_currentManagerPath] = inManager;
-			}
-		};
-
-
-		// ===================================================================
-		context.destroy = function destroy(
+		dispatchRequire.getContext = function getContext(
 			inPath)
 		{
-			var manager = _managers[inPath];
+			return _contexts[inPath];
+		};
 
-			if (manager) {
-					// destroying an manager means destroying all the contexts
-					// it manages
-				manager.destroyAll();
-				delete _managers[inPath];
+
+		// ===================================================================
+		dispatchRequire.registerContext = function registerContext(
+			inContext)
+		{
+				// if _currentContextPath is falsy, we must not be in the middle 
+				// of calling runScript on a Context, so ignore this call 
+			if (_currentContextPath) {
+				_contexts[_currentContextPath] = inContext;
 			}
 		};
 
 
 		// ===================================================================
-		context.destroyAll = function destroyAll()
+		dispatchRequire.destroyContext = function destroyContext(
+			inPath)
 		{
-			for (var path in _managers) {
-				this.destroy(path);
+			var context = _contexts[inPath];
+
+			if (context) {
+				context.destroy();
+				delete _contexts[inPath];
 			}
 		};
 
-		return context;
+
+		// ===================================================================
+		dispatchRequire.destroyAll = function destroyAll()
+		{
+			for (var path in _contexts) {
+				this.destroyContext(path);
+			}
+		};
+
+		return dispatchRequire;
 	}
 
 
 	// =======================================================================
-	function setupManager() 
+	function setupContext() 
 	{
-			// a hash to store each context we're managing by name
-		var _contexts = {},
-			_context,
-			_stack = [],
-				// get a reference to the global object.  this would be "window"
-				// in a browser, but isn't named in Fireworks.
-			_global = (function() { return this; })();
+			// get a reference to the global object.  this would be "window"
+			// in a browser, but isn't named in Fireworks.
+		var _global = (function() { return this; })();
 
 
 		// ===================================================================
-		function Context(
-			inName,
-			inPath)
+		function Context()
 		{
-			this.name = inName;
-			this.path = inPath;
-log("-------- new Context", inName, inPath);
-
-				// these are the globals that belong to the context and will be saved
-				// after the context exits
+				// these are the globals that belong to the context and will 
+				// be saved after the context execution exits
 			this.globals = {};
 
 				// these are the globals that are being overridden by the current
@@ -342,17 +329,21 @@ log("-------- new Context", inName, inPath);
 				// this is a stack of previously preserved globals, so that we can
 				// support nested contexts 
 			this.preservedGlobalsStack = [];
-
-			this.loadedRequire = false;
 		}
 
 
 		// ===================================================================
 		Context.prototype = {
+			version: 1.0,
+			name: "",
+			path: "",
+			loadedRequire: false,
+			
+			
 			destroy: function destroy()
 			{
-				if (this.globals.require) {
-					delete this.globals.require.attach;
+				if (this.require) {
+					delete this.require.attach;
 				}
 
 					// make double-sure that references to the stored globals are broken
@@ -365,16 +356,27 @@ log("-------- new Context", inName, inPath);
 			execute: function execute(
 				inConfig,
 				inDependencies,
-				inCallback,
-				inSameContext)
+				inCallback)
 			{
-inSameContext = false;
+					// adjust the optional parameters 
+				if (typeof inConfig == "function") {
+					inCallback = inConfig;
+					inDependencies = [];
+					inConfig = {};
+				} else if (inConfig instanceof Array || typeof inConfig == "string") {
+					inCallback = inDependencies;
+					inDependencies = inConfig;
+					inConfig = {};
+				} 
+				
+				if (typeof inDependencies == "function") {
+					inCallback = inDependencies;
+					inDependencies = [];
+				}
 
 					// before executing the callback, restore our previously saved 
 					// globals, but only if a different context was previously loaded
-				if (!inSameContext) {
-					this.restoreGlobals();
-				}
+				this.restoreGlobals();
 
 				if (!this.loadedRequire) {
 						// we've never been executed before, so load the require library
@@ -383,8 +385,13 @@ inSameContext = false;
 					this.loadRequire();
 				}
 
-					// executeContext will pass {} for inConfig if one wasn't 
-					// passed in to that function
+					// the Context name is derived from its path, which can be
+					// different than the name passed in via config.context 
+					// by the caller.  this is because there's only ever one
+					// Context instance at this path, while require may manage
+					// additional sub-contexts.
+				this.name = this.prettifyPath(this.path);
+				inConfig.baseUrl = this.path;
 				inConfig.context = inConfig.context || this.name;
 
 					// we can't call this "name", because require.name is the 
@@ -394,6 +401,9 @@ inSameContext = false;
 					// these names.
 				require.currentContextName = inConfig.context;
 				require.currentContextPath = inConfig.baseUrl;
+				require.currentScriptDir = this.currentScriptDir;
+// currentScriptFileName is context.js, not the caller				
+//				require.currentScriptFileName = this.currentScriptFileName;
 
 				try {
 						// call this context's instance of the require global, which
@@ -415,9 +425,7 @@ inSameContext = false;
 
 					// save the current values of our globals, which will also restore
 					// their previously preserved values
-				if (!inSameContext) {
-					this.saveGlobals();
-				}
+				this.saveGlobals();
 
 				return result;
 			},
@@ -554,112 +562,33 @@ inSameContext = false;
 					// now that we've restored all of these globals, pop back to the
 					// next set of preserved globals on the stack 
 				this.preservedGlobals = this.preservedGlobalsStack.pop();
+			},
+
+
+			// ===============================================================
+			prettifyPath: function prettifyPath(
+				inPath)
+			{
+					// make sure there's a / on the end of the path, so that whether or
+					// not the path got passed in with one, we consistently have a /
+					// for the context name
+				inPath = path(inPath, "");
+
+					// to make a prettier context name, remove the path to the app
+					// Commands directory, or replace it with USER if it's in the
+					// user directory
+				return unescape(inPath.replace(fw.appJsCommandsDir, "")
+					.replace(fw.userJsCommandsDir, "USER"));
 			}
 		}; // end of Context.prototype
 
 
-		// ===================================================================
-		var manager = {
-			executeContext: function executeContext(
-				inConfig,
-				inDependencies,
-				inCallback)
-			{
-					// adjust the optional parameters 
-				if (typeof inConfig == "function") {
-					inCallback = inConfig;
-					inDependencies = [];
-					inConfig = {};
-				} else if (inConfig instanceof Array || typeof inConfig == "string") {
-					inCallback = inDependencies;
-					inDependencies = inConfig;
-					inConfig = {};
-				} 
-				
-				if (typeof inDependencies == "function") {
-					inCallback = inDependencies;
-					inDependencies = [];
-				}
-
-// this is klunky, but probably better than having dispatchRequire do it
-				inConfig.baseUrl = this.path;
-
-					// get the previously saved context with this name, or create a new
-					// one if it's the first time this name is being used 
-				var contextName = prettifyPath(this.path),
-					context = _context ||
-					(_context = new Context(contextName, this.path)),
-					previousContext = _stack[_stack.length - 1],
-					executingInSameContext = (previousContext && (previousContext.name == context.name));
-
-					// push the context onto the stack so we can support nested contexts
-				_stack.push(context);
-
-					// tell the context to execute the function the caller passed in and
-					// whether the same context is already loaded, which means it doesn't
-					// need to save off its globals 
-				var result = context.execute(inConfig, inDependencies, inCallback, executingInSameContext);
-
-				_stack.pop();
-
-				return result;
-			},
-
-
-			version: 1.0,
-
-
-			// ===============================================================
-			get: function get(
-				inContextName)
-			{
-				return _contexts[inContextName];
-			},
-
-
-			// ===============================================================
-			getNames: function getNames()
-			{
-				var names = [];
-
-				for (var name in _contexts) {
-					names.push(name);
-				}
-
-				return names;
-			},
-
-
-			// ===============================================================
-			destroy: function destroy(
-				inContextName)
-			{
-					// default to the path of the current script if no name is passed in
-				inContextName = inContextName || prettifyPath(this.path);
-				var targetContext = _contexts[inContextName];
-
-				if (targetContext) {
-					targetContext.destroy();
-					delete _contexts[inContextName];
-				}
-			},
-
-
-			// ===============================================================
-			destroyAll: function destroyAll()
-			{
-				for (var name in _contexts) {
-					this.destroy(name);
-				}
-			}
-		};
-
-
-			// register our manager with the context global 
+			// register our Context instance with the dispatchRequire global
 		if (typeof require == "function") {
-			require.registerManager(manager);
+			require.registerContext(new Context());
 		}
 	}
+
 
 	try { 
 		if (typeof require != "function") {
@@ -668,7 +597,7 @@ inSameContext = false;
 		} else {
 				// there's already a global context dispatcher, so just 
 				// define the manager for the current path
-			setupManager();
+			setupContext();
 		}
 	} catch (exception) {
 		if (exception.lineNumber) {
