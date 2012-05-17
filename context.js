@@ -1,11 +1,13 @@
 /* ===========================================================================
 
-	File: context.js
+	fwrequire.js
 
-	Author - John Dunning
-	Copyright - 2012 John Dunning.  All rights reserved.
-	Email - fw@johndunning.com
-	Website - http://johndunning.com/fireworks
+	Copyright 2012 John Dunning.  
+	fw@johndunning.com
+	http://johndunning.com/fireworks
+
+	fwrequire.js is released under the MIT license.  See the LICENSE file 
+	for details.
 
    ======================================================================== */
 
@@ -17,8 +19,10 @@
 			having a module define a name for itself and then move the module
 				to a different folder has poor error message 
 
-		- calling one .jsf after another, with the second in a different context,
-			seems to throw a recursion error 
+		- trace doesn't work inside context()
+
+		- maybe always pass a config into require, using the context's name
+			and path as the default vaules 
 
 		- should pass all the params to the context, so it can decide how to 
 			use them
@@ -35,10 +39,6 @@
 		- test using packages and main.js
 
 		- test setting catchError.define = true
-
-		- maybe just call it require(), in fwrequire.js
-			but the real require would shadow the context one when executing
-			or fwrequire()
 
 		- calling define() inside a context only works if using a named context
 			otherwise, it thinks the root dir is /lib/lib/
@@ -64,6 +64,13 @@
 		- throw error if addManager wasn't called? 
 
 	Done:
+		- maybe just call it require(), in fwrequire.js
+			but the real require would shadow the context one when executing
+			or fwrequire()
+
+		- calling one .jsf after another, with the second in a different context,
+			seems to throw a recursion error 
+
 		- shuld be possible to pass in a bare string to require just one module 
 			no, that's only to get synchronous access to an already loaded module
 
@@ -183,12 +190,9 @@
 
 
 		// ===================================================================
-//		var context = _global.require = function context(
-		var context = _global.context = function context(
+		var context = _global.require = function context(
 			inConfig)
 		{
-//return trace();
-			
 				// if currentScriptDir is null, it means this is the first context()
 				// call after we were loaded via runScript, so fall back to the
 				// _initialCallerPath we stored above
@@ -200,7 +204,6 @@
 				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
 					_initialContextPath,
 				manager;
-//log(contextPath);
 
 				// make sure inConfig is an object but not an array 
 			if (inConfig && typeof inConfig == "object" && !(inConfig instanceof Array)) {
@@ -219,10 +222,8 @@
 			manager = _managers[contextPath];
 
 			if (!manager) {
-//log("no manager");				
 					// call the version of context.js at this path
 				var contextJSPath = path(contextPath, "context.js");
-//log(contextJSPath);
 
 				if (Files.exists(contextJSPath)) {
 						// save the current contextPath, which we'll use when the
@@ -232,14 +233,12 @@
 
 						// the manager should now be registered
 					manager = _managers[contextPath];
-//log("manager after runScript", manager);					
 					manager.path = contextPath;
 					_currentManagerPath = "";
 				}
 			}
 
 			if (manager) {
-log("found manager");				
 					// dispatch the context call to the manager for the 
 					// requested context
 				manager.executeContext.apply(manager, arguments);
@@ -384,25 +383,11 @@ inSameContext = false;
 						// require is already loaded
 					this.loadRequire();
 				}
-log("-------- require after restoreGlobals", typeof require);
 
-					// we can't call this "name", because context.name is the name
-					// of the context function 
+					// we can't call this "name", because require.name is the 
+					// name of the require function and is read-only
 				require.currentName = this.name;
 				require.currentPath = this.path;
-//				context.currentName = this.name;
-//				context.currentPath = this.path;
-
-//log("executing", this.name, this.path);
-
-//log("------ attach after restoreGlobals", require.attach);
-
-if (typeof require != "function" || typeof require.attach != "function") {
-	log("------------- wrong require");
-	delete require;
-	return;
-//alert("attach");
-}
 
 				try {
 //					if (inDependencies && typeof inDependencies == "object") {
@@ -435,7 +420,6 @@ if (typeof require != "function" || typeof require.attach != "function") {
 				if (!inSameContext) {
 					this.saveGlobals();
 				}
-//log("----- attach after restore", require.attach);
 
 				return result;
 			},
@@ -487,7 +471,7 @@ if (typeof require != "function" || typeof require.attach != "function") {
 				};
 
 					// save an easily accessible reference to our require instance
-//				this.require = require;
+				this.require = require;
 
 					// we only need to do this once per context
 				this.loadedRequire = true;
@@ -599,16 +583,13 @@ log([].concat(arguments));
 					inConfig = prettifyPath(this.path);
 					contextName = prettifyPath(this.path);
 				} else if (inConfig && typeof inConfig == "object") {
-//					inConfig = inConfig.context || prettifyPath(this.path);
 					contextName = inConfig.context || prettifyPath(this.path);
-//					inConfig = inConfig.context || prettifyPath(this.path);
 				}
 				
 				if (typeof inDependencies == "function") {
 					inCallback = inDependencies;
 					inDependencies = [];
 				}
-log("inConfig", inConfig);
 
 					// get the previously saved context with this name, or create a new
 					// one if it's the first time this name is being used 
@@ -616,12 +597,8 @@ log("inConfig", inConfig);
 //					(_context = new Context(contextName, this.path)),
 				var context = _contexts[contextName] ||
 					(_contexts[contextName] = new Context(contextName, this.path)),
-//				var context = _contexts[inConfig] ||
-//					(_contexts[inConfig] = new Context(inConfig, this.path)),
 					previousContext = _stack[_stack.length - 1],
 					executingInSameContext = (previousContext && (previousContext.name == context.name));
-
-log("executingInSameContext", executingInSameContext, _stack.length);
 
 					// push the context onto the stack so we can support nested contexts
 				_stack.push(context);
@@ -630,9 +607,6 @@ log("executingInSameContext", executingInSameContext, _stack.length);
 					// whether the same context is already loaded, which means it doesn't
 					// need to save off its globals 
 				var result = context.execute(inConfig, inDependencies, inCallback, executingInSameContext);
-//				var result = context.execute.apply(context, [inConfig, inDependencies, inCallback, executingInSameContext]);
-//				var result = context.execute(inDependencies, inCallback, executingInSameContext);
-log("done with execute");
 
 				_stack.pop();
 
@@ -690,16 +664,13 @@ log("done with execute");
 
 
 			// register our manager with the context global 
-//		if (typeof require == "function") {
-//			require.registerManager(manager);
-		if (typeof context == "function") {
-			context.registerManager(manager);
+		if (typeof require == "function") {
+			require.registerManager(manager);
 		}
 	}
 
 	try { 
-//		if (typeof require != "function") {
-		if (typeof context != "function") {
+		if (typeof require != "function") {
 				// the global context function hasn't been set up yet
 			setupDispatcher();
 		} else {
