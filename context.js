@@ -190,7 +190,7 @@
 
 
 		// ===================================================================
-		var context = _global.require = function context(
+		var context = _global.require = function dispatchRequire(
 			inConfig)
 		{
 				// if currentScriptDir is null, it means this is the first context()
@@ -214,7 +214,6 @@
 						contextPath = path(callerPath, contextPath);
 					}
 				}
-				
 			}
 			
 				// make sure the contextPath ends in a /
@@ -384,23 +383,22 @@ inSameContext = false;
 					this.loadRequire();
 				}
 
+					// executeContext will pass {} for inConfig if one wasn't 
+					// passed in to that function
+				inConfig.context = inConfig.context || this.name;
+
 					// we can't call this "name", because require.name is the 
-					// name of the require function and is read-only
-				require.currentName = this.name;
-				require.currentPath = this.path;
+					// name of the require function and is read-only, and there's
+					// already a contextName property on the function, since 
+					// that's a local var of require().  to avoid confusion, use
+					// these names.
+				require.currentContextName = inConfig.context;
+				require.currentContextPath = inConfig.baseUrl;
 
 				try {
-//					if (inDependencies && typeof inDependencies == "object") {
-//							// we don't want the baseUrl making it into the require()
-//							// call, since we already passed it a baseUrl when we
-//							// first loaded it
-//						delete inDependencies.baseUrl;
-//					}
-
 						// call this context's instance of the require global, which
 						// should be loaded or restored by now 
-					var result = require(inDependencies, inCallback);
-//					var result = require(inConfig, inDependencies, inCallback);
+					var result = require(inConfig, inDependencies, inCallback);
 				} catch (exception) {
 					if (exception.lineNumber) {
 						alert(["Error in context: " + this.name, exception.message,
@@ -440,8 +438,7 @@ inSameContext = false;
 				fw.runScript(path(this.path, "require.js"));
 
 				try {
-						// tell require where to look for our files 
-					require({ baseUrl: this.path });
+					require.call;
 				} catch (exception) { 
 						// the require library must not be installed 
 					console.log("ERROR in context", this.name.quote() + ":", "require.js was not found in", this.path);
@@ -568,35 +565,30 @@ inSameContext = false;
 				inDependencies,
 				inCallback)
 			{
-				var contextName = prettifyPath(this.path);
-log([].concat(arguments));
-
 					// adjust the optional parameters 
 				if (typeof inConfig == "function") {
 					inCallback = inConfig;
 					inDependencies = [];
-					inConfig = prettifyPath(this.path);
-					contextName = prettifyPath(this.path);
+					inConfig = {};
 				} else if (inConfig instanceof Array || typeof inConfig == "string") {
 					inCallback = inDependencies;
 					inDependencies = inConfig;
-					inConfig = prettifyPath(this.path);
-					contextName = prettifyPath(this.path);
-				} else if (inConfig && typeof inConfig == "object") {
-					contextName = inConfig.context || prettifyPath(this.path);
-				}
+					inConfig = {};
+				} 
 				
 				if (typeof inDependencies == "function") {
 					inCallback = inDependencies;
 					inDependencies = [];
 				}
 
+// this is klunky, but probably better than having dispatchRequire do it
+				inConfig.baseUrl = this.path;
+
 					// get the previously saved context with this name, or create a new
 					// one if it's the first time this name is being used 
-//				var context = _context ||
-//					(_context = new Context(contextName, this.path)),
-				var context = _contexts[contextName] ||
-					(_contexts[contextName] = new Context(contextName, this.path)),
+				var contextName = prettifyPath(this.path),
+					context = _context ||
+					(_context = new Context(contextName, this.path)),
 					previousContext = _stack[_stack.length - 1],
 					executingInSameContext = (previousContext && (previousContext.name == context.name));
 
