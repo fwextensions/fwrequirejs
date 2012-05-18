@@ -35,11 +35,19 @@
 
 		- trace doesn't work inside context()
 
+		- maybe provide require.config() call that set up the configuration 
+			for dispatchRequire
+
+		- should be able to call runScript from /lib to load this file and have it 
+			default to the current /lib directory as the baseUrl
+
 		- should Context be a singleton?
 
 		- do we still need the preservedGlobalsStack?
 
-		- set up proper unit tests, maybe with vows.js
+		- set up proper unit tests, maybe with vows.js or jasmine
+
+		- run through jslint
 
 		- put _global on Context prototype
 
@@ -77,6 +85,12 @@
 		- throw error if addManager wasn't called? 
 
 	Done:
+		- take the baseFilename from the initial script filename
+
+		- store the original path to fwrequire.js on dispatchRequire
+
+		- maybe unescape caller paths so they're normalized
+
 		- store the caller's currentScriptDir on context, separate from current
 			context path 
 
@@ -194,6 +208,7 @@
 				// above the /lib/
 			_initialContextPath = fw.currentScriptDir,
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir),
+			_initialScriptFilename = fw.currentScriptFileName,
 				// this module global stores the requested Context path 
 				// while the Context code is loaded, so we know what to call it
 				// when it calls registerContext()
@@ -210,7 +225,7 @@
 			var callerPath = fw.currentScriptDir || _initialCallerPath,
 					// if there's a currentScriptDir, then that means the 
 					// context has already been set up, so we don't know where
-					// the context.js file is located relative to the calling
+					// the fwrequire.js file is located relative to the calling
 					// file.  so assume it's in a lib subfolder. 
 				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
 					_initialContextPath,
@@ -229,14 +244,20 @@
 				}
 			}
 			
-				// make sure the contextPath ends in a / and get the relevant
-				// context
-			contextPath = path(contextPath, "");
+				// make sure the contextPath ends in a / and unescape it, to
+				// ensure that paths match regardless of whether they're passed
+				// in escaped or not
+			contextPath = unescape(path(contextPath, ""));
 			context = _contexts[contextPath];
 
 			if (!context) {
-					// call the version of context.js at this path
-				var contextJSPath = path(contextPath, "context.js");
+					// call the file at this path that instantiates the Context.
+					// by default, that's fwrequire.js, but a .jsf can set the
+					// baseFilename property before calling require() to specify
+					// a different filename for that context.  we'll default to
+					// this file's actual filename.
+				var contextJSPath = path(contextPath, 
+					dispatchRequire.baseFilename || _initialScriptFilename);
 
 				if (Files.exists(contextJSPath)) {
 						// save the current contextPath, which we'll use when the
@@ -254,6 +275,14 @@
 				}
 			}
 
+				// delete the baseFilename so that it doesn't affect the
+				// next context we set up, unless that one also sets the
+				// property before calling require().  delete it outside the if
+				// block because another .jsf file in the same context might 
+				// define baseFilename again, but since the context already 
+				// exists, we would skip the if block.
+			delete dispatchRequire.baseFilename;
+
 			if (context) {
 					// dispatch the execute call to the Context instance for the 
 					// requested path
@@ -264,7 +293,8 @@
 		};
 
 
-		dispatchRequire.version = 1.0;
+		dispatchRequire.version = 0.1;
+		dispatchRequire.path = unescape(_initialContextPath);
 
 
 		// ===================================================================
@@ -321,6 +351,7 @@
 			}
 		};
 
+
 		return dispatchRequire;
 	}
 
@@ -352,7 +383,7 @@
 
 		// ===================================================================
 		Context.prototype = {
-			version: 1.0,
+			version: 0.1,
 			name: "",
 			path: "",
 			loadedRequire: false,
@@ -392,8 +423,8 @@
 					inDependencies = [];
 				}
 
-					// before executing the callback, restore our previously saved 
-					// globals, but only if a different context was previously loaded
+					// before executing the callback, restore our previously 
+					// saved globals
 				this.restoreGlobals();
 
 				if (!this.loadedRequire) {
@@ -445,8 +476,8 @@
 					}
 				}
 
-					// save the current values of our globals, which will also restore
-					// their previously preserved values
+					// save the current values of our globals, which will also 
+					// restore their previously preserved values
 				this.saveGlobals();
 
 				return result;
