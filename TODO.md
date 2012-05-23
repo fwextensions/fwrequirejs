@@ -5,17 +5,25 @@
 	having a module define a name for itself and then move the module
 		to a different folder has poor error message 
 
+- shouldn't name Context in execute method
+	should probably create the name when it's registered 
+	maybe the dispatcher calls it back with a path
+
+- make sure multiple define calls in one script, with earlier calls depending on 
+	modules defined by later calls, work
+
 - maybe provide require.config() call that sets up the configuration 
 	for dispatchRequire
 
 - should be able to call runScript from a script within /lib to load this file and have it 
 	default to the current /lib directory as the baseUrl
 
+- use alerts for error reporting or throw errors? 
+	better to throw for testing
+
 - should Context be a singleton?
 
 - do we still need the preservedGlobalsStack?
-
-- set up proper unit tests, maybe with vows.js or jasmine
 
 - run through jslint
 
@@ -46,6 +54,14 @@
 
 
 # Done:
+
+- set up proper unit tests, maybe with vows.js or jasmine
+
+- should point top-level define and requirejs functions to our require() function
+	it should be possible to load things using only define()
+
+- should be able to test with doh and dojo.js loader
+	pass in the right config objects, dom:0, etc. 
 
 - we probably don't need the dummy log if there's only one log call
 

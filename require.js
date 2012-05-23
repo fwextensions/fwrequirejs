@@ -6,12 +6,8 @@
 /*jslint strict: false, plusplus: false, sub: true */
 /*global window, navigator, document, importScripts, jQuery, setTimeout, opera */
 
-//log("in requirejs", fw.currentScriptDir);
-
 var requirejs, require, define;
 (function (undefined) {
-log("in require definition function", requirejs, require, define);
-
     //Change this version number for each release.
     var version = "1.0.8",
         commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg,
@@ -146,10 +142,7 @@ log("in require definition function", requirejs, require, define);
     }
 
     if (typeof requirejs !== "undefined") {
-log('typeof requirejs !== "undefined"');
-
         if (isFunction(requirejs)) {
-log("**** requirejs is function");			
             //Do not overwrite and existing requirejs instance.
             return;
         } else {
@@ -160,7 +153,6 @@ log("**** requirejs is function");
 
     //Allow for a require config object
     if (typeof require !== "undefined" && !isFunction(require)) {
-log("found config object");		
         //assume it is a config object.
         cfg = require;
         require = undefined;
@@ -314,7 +306,6 @@ log("found config object");
             if (prefix) {
                 prefix = normalize(prefix, parentName);
             }
-//log("makeModuleMap name prefix", name, prefix);
 
             //Account for relative paths if there is a base name.
             if (name) {
@@ -434,11 +425,9 @@ log("found config object");
                 listeners = manager.listeners,
                 execCb = config.requireExecCb || req.execCb,
                 cjsModule;
-//log("in execManager");
 
             //Call the callback to define the module, if necessary.
             if (cb && isFunction(cb)) {
-//log("found callback");				
                 if (config.catchError.define) {
                     try {
                         ret = execCb(fullName, manager.callback, args, defined[fullName]);
@@ -754,8 +743,6 @@ log("found config object");
                 id = manager.id,
                 deps = manager.deps,
                 i, depArg, depName, depPrefix, cjsMod;
-//log("in main fullName:", fullName);
-//log("in main fullName", fullName, "moduleMap", moduleMap);			
 
             if (fullName) {
                 //If module already defined for context, or already loaded,
@@ -764,7 +751,6 @@ log("found config object");
                 if (fullName in defined || loaded[id] === true ||
                     (fullName === "jquery" && config.jQuery &&
                      config.jQuery !== callback().fn.jquery)) {
-log(fullName, "already defined");					 
                     return;
                 }
 
@@ -787,7 +773,6 @@ log(fullName, "already defined");
             //for a module.
             manager.depArray = depArray;
             manager.callback = callback;
-//log("manager.callback", manager.callback+"");
 
             //Add the dependencies to the deps field, and register for callbacks
             //on the dependencies.
@@ -1346,7 +1331,6 @@ log(fullName, "already defined");
             },
 
             require: function (deps, callback, relModuleMap) {
-log("*** require", deps, callback);				
                 var moduleName, fullName, moduleMap;
                 if (typeof deps === "string") {
                     if (isFunction(callback)) {
@@ -1568,7 +1552,6 @@ log("*** require", deps, callback);
         //Find the right context, use default
         var contextName = defContextName,
             context, config;
-log("*** requirejs", deps);
 
         // Determine if have config object in the call.
         if (!isArray(deps) && typeof deps !== "string") {
@@ -1714,7 +1697,6 @@ log("*** requirejs", deps);
             callback = deps;
             deps = [];
         }
-log("*** in define", name, deps);
 
         //If no name, and callback is a function, then figure out if it a
         //CommonJS thing with dependencies.
@@ -1722,8 +1704,6 @@ log("*** in define", name, deps);
             //Remove comments from the callback string,
             //look for require calls, and pull them into the dependencies,
             //but only if there are function args.
-//log("callback.length", callback.length);
-
             if (callback.length) {
                 callback
                     .toString()
@@ -1760,7 +1740,6 @@ log("*** in define", name, deps);
         //occurs. If no context, use the global queue, and get it processed
         //in the onscript load callback.
         (context ? context.defQueue : globalDefQueue).push([name, deps, callback]);
-log("done define");
 
         return undefined;
     };
@@ -1788,7 +1767,6 @@ log("done define");
      * @private
      */
     req.execCb = function (name, callback, args, exports) {
-//log("execCb", name, callback+"");		
         return callback.apply(exports, args);
     };
 
@@ -1867,8 +1845,6 @@ log("done define");
      * but not executed, the fetchOnlyFunction will be called.
      */
     req.attach = function (url, context, moduleName, callback, type, fetchOnlyFunction) {
-log("=== original attach", url);
-
         var node;
         if (isBrowser) {
             //In the browser so use a script tag

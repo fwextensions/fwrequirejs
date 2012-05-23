@@ -57,7 +57,7 @@
 
 
 		// ===================================================================
-		var dispatchRequire = _global.require = function dispatchRequire(
+		var dispatchRequire = _global.require = _global.define = function dispatchRequire(
 			inConfig)
 		{
 				// if currentScriptDir is null, it means this is the first context()
@@ -129,7 +129,7 @@
 					// requested path
 				context.execute.apply(context, arguments);
 			} else {
-				alert(unescape(contextJSPath).quote() + " could not be found.");
+				alert("FWRrequireJS error:\nFile could not be found: " + unescape(contextJSPath));
 			}
 		};
 
@@ -305,14 +305,14 @@
 					var result = require(inConfig, inDependencies, inCallback);
 				} catch (exception) {
 					if (exception.lineNumber) {
-						alert(["Error in context: " + this.name.quote(), exception.message,
+						alert(["FWRrequireJS error in context: " + this.name.quote(), exception.message,
 							exception.lineNumber, exception.fileName].join("\n"));
 					} else {
 							// there's no error info on the exception, so show an
 							// alert that there was an error in this context, then
 							// throw the exception to let FW display a more 
 							// meaningful error message
-						alert("Error in context: " + this.name.quote());
+						alert("FWRrequireJS error in context: " + this.name.quote());
 						throw exception;
 					}
 				}
@@ -343,8 +343,8 @@
 					require.call;
 				} catch (exception) { 
 						// the require library must not be installed 
-					alert(["Error in context:", this.name.quote() + 
-						":", "require.js was not found in", this.path].join(" "));
+					alert(["FWRrequireJS error in context: " + this.name.quote(), 
+						"require.js was not found in " + this.path].join("\n"));
 					return;
 				}
 
