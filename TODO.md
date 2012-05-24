@@ -5,18 +5,38 @@
 	having a module define a name for itself and then move the module
 		to a different folder has poor error message 
 
-- shouldn't name Context in execute method
-	should probably create the name when it's registered 
-	maybe the dispatcher calls it back with a path
-
-- make sure multiple define calls in one script, with earlier calls depending on 
-	modules defined by later calls, work
-
 - maybe provide require.config() call that sets up the configuration 
 	for dispatchRequire
+	would help with testing, allowing a new context path to be added without
+	having to require a module 
+	and the next script that used require wouldn't have to pass a baseUrl
+	or could create a context without requiring fwrequire in the caller's 
+		baseUrl path
+
+- we don't really need the baseFilename property if the user can pass in a
+	fwrequirePath property 
+
+- if fwrequire.js can't be found at lib/ and a baseUrl isn't passed, then we
+	should just create a new Context object at the caller's path using the
+	current class
+
+- should add some error handling to attach if the url doesn't exist
+	but it's not clear how to notify require of errors 
+
+- test calling require(), and in that calling another require() with a different
+	path, which causes a different fwrequire.js to be loaded
+
+- can't load require, then pass a config with a baseUrl pointing at a folder
+	that doesn't have fwrequire.js in it
+	because the dispatcher looks at the baseUrl, sees a new path, then tries to 
+	load fwrequire.js at that path
 
 - should be able to call runScript from a script within /lib to load this file and have it 
 	default to the current /lib directory as the baseUrl
+	but doesn't work due to above
+
+- make sure multiple define calls in one script, with earlier calls depending on 
+	modules defined by later calls, work
 
 - use alerts for error reporting or throw errors? 
 	better to throw for testing
@@ -53,7 +73,12 @@
 - throw error if addManager wasn't called? 
 
 
+
 # Done:
+
+- shouldn't name Context in execute method
+	should probably create the name when it's registered 
+	maybe the dispatcher calls it back with a path
 
 - set up proper unit tests, maybe with vows.js or jasmine
 

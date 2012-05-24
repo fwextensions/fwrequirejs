@@ -49,27 +49,28 @@
 				// above the /lib/
 			_initialContextPath = fw.currentScriptDir,
 			_initialCallerPath = Files.getDirectory(fw.currentScriptDir),
-			_initialScriptFilename = fw.currentScriptFileName,
-				// this module global stores the requested Context path 
-				// while the Context code is loaded, so we know what to call it
-				// when it calls registerContext()
-			_currentContextPath = "";
+				// this module global stores the requested Context path info
+				// while the Context code is loaded, and is returned to the
+				// Context when it calls registerContext()
+			_newContextInfo;
 
 
 		// ===================================================================
 		var dispatchRequire = _global.require = _global.define = function dispatchRequire(
 			inConfig)
 		{
-				// if currentScriptDir is null, it means this is the first context()
+				// if currentScriptDir is null, it means this is the first require()
 				// call after we were loaded via runScript, so fall back to the
 				// _initialCallerPath we stored above
 			var callerPath = fw.currentScriptDir || _initialCallerPath,
 					// if there's a currentScriptDir, then that means the 
 					// context has already been set up, so we don't know where
 					// the fwrequire.js file is located relative to the calling
-					// file.  so assume it's in a lib subfolder. 
+					// file.  by default, assume it's in a lib subfolder. 
 				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
 					_initialContextPath,
+				requirePath = contextPath,
+				fwrequirePath = contextPath,
 				context;
 
 				// make sure inConfig is an object but not an array 
@@ -82,9 +83,33 @@
 					if (contextPath.indexOf("file://") != 0) {
 						contextPath = path(callerPath, contextPath);
 					}
+
+					fwrequirePath = requirePath = contextPath;
+				}
+				
+				if (inConfig.requirePath) {
+						// use the config's requirePath as the path to the 
+						// require.js file
+					fwrequirePath = requirePath = inConfig.requirePath;
+					
+						// this is needed only for setting up the context the
+						// first time a new path is encountered, so don't pass
+						// it to the real require
+					delete inConfig.requirePath;
+				}
+				
+				if (inConfig.fwrequirePath) {
+						// use the config's fwrequirePath as the path to the 
+						// require.js file
+					fwrequirePath = inConfig.fwrequirePath;
+					
+						// this is needed only for setting up the context the
+						// first time a new path is encountered, so don't pass
+						// it to the real require
+					delete inConfig.fwrequirePath;
 				}
 			}
-			
+
 				// make sure the contextPath ends in a / and unescape it, to
 				// ensure that paths match regardless of whether they're passed
 				// in escaped or not
@@ -93,43 +118,35 @@
 
 			if (!context) {
 					// call the file at this path that instantiates the Context.
-					// by default, that's fwrequire.js, but a .jsf can set the
-					// baseFilename property before calling require() to specify
-					// a different filename for that context.  we'll default to
-					// this file's actual filename.
-				var contextJSPath = path(contextPath, 
-					dispatchRequire.baseFilename || _initialScriptFilename);
+					// by default, that's fwrequire.js, but a .jsf can pass
+					// a fwrequirePath property to specify a different filename 
+					// for that context.  
+				if (fwrequirePath.slice(-3) != ".js") {
+					fwrequirePath = path(fwrequirePath, "fwrequire.js");
+				}
 
-				if (Files.exists(contextJSPath)) {
+				if (Files.exists(fwrequirePath)) {
 						// save the current contextPath, which we'll use when the
 						// Context calls registerContext after we run its JS
-					_currentContextPath = contextPath;
-					fw.runScript(contextJSPath);
+					_newContextInfo = {
+						path: contextPath,
+						requirePath: requirePath,
+						currentScriptDir: callerPath
+					};
+					fw.runScript(fwrequirePath);
 					
 						// the context should now be registered
 					context = _contexts[contextPath];
-					_currentContextPath = "";
-					
-						// add information about the caller to the context
-					context.path = contextPath;
-					context.currentScriptDir = callerPath;
+					_newContextInfo = null;
 				}
 			}
-
-				// delete the baseFilename so that it doesn't affect the
-				// next context we set up, unless that one also sets the
-				// property before calling require().  delete it outside the if
-				// block because another .jsf file in the same context might 
-				// define baseFilename again, but since the context already 
-				// exists, we would skip the if block.
-			delete dispatchRequire.baseFilename;
 
 			if (context) {
 					// dispatch the execute call to the Context instance for the 
 					// requested path
 				context.execute.apply(context, arguments);
 			} else {
-				alert("FWRrequireJS error:\nFile could not be found: " + unescape(contextJSPath));
+				alert("FWRrequireJS error:\nFile could not be found: " + unescape(fwrequirePath));
 			}
 		};
 
@@ -163,10 +180,16 @@
 		dispatchRequire.registerContext = function registerContext(
 			inContext)
 		{
-				// if _currentContextPath is falsy, we must not be in the middle 
-				// of calling runScript on a Context, so ignore this call 
-			if (_currentContextPath) {
-				_contexts[_currentContextPath] = inContext;
+			if (_newContextInfo) {
+				_contexts[_newContextInfo.path] = inContext;
+				
+					// return the path info to our caller so it can update the
+					// context with it
+				return _newContextInfo;
+			} else {
+					// if _newContextInfo is null, we must not be in the middle 
+					// of calling runScript on a Context, so ignore this call 
+				return null;
 			}
 		};
 
@@ -227,9 +250,12 @@
 			version: 0.1,
 			name: "",
 			path: "",
+			requirePath: "",
+			currentScriptDir: "",
 			loadedRequire: false,
 			
 			
+			// ===============================================================
 			destroy: function destroy()
 			{
 				if (this.require) {
@@ -239,6 +265,34 @@
 					// make double-sure that references to the stored globals are broken
 				this.globals = null;
 				this.preservedGlobals = null;
+			},
+
+
+			// ===============================================================
+			config: function config(
+				inConfig)
+			{
+				this.path = inConfig.path;
+				
+					// the Context name is derived from its path, which can be
+					// different than the name passed in via config.context 
+					// by the caller.  this is because there's only ever one
+					// Context instance at this path, while require may manage
+					// additional sub-contexts.
+				this.name = this.prettifyPath(this.path);
+				this.currentScriptDir = inConfig.currentScriptDir;
+				this.requirePath = inConfig.requirePath || (path(this.path, "require.js"));
+
+				if (this.requirePath.indexOf("file://") != 0) {
+						// make sure this is an absolute path
+					this.requirePath = path(this.path, this.requirePath);
+				}
+
+				if (this.requirePath.slice(-3) != ".js") {
+						// we only got the path to the folder containing the 
+						// file, so add the default file name
+					this.requirePath = path(this.requirePath, "require.js");
+				}
 			},
 
 
@@ -275,14 +329,7 @@
 					this.loadRequire();
 				}
 
-					// the Context name is derived from its path, which can be
-					// different than the name passed in via config.context 
-					// by the caller.  this is because there's only ever one
-					// Context instance at this path, while require may manage
-					// additional sub-contexts.
-				this.name = this.prettifyPath(this.path);
 				inConfig.baseUrl = this.path;
-				inConfig.context = inConfig.context || this.name;
 
 					// we can't call this "name", because require.name is the 
 					// name of the require function and is read-only, and there's
@@ -336,8 +383,9 @@
 				this.loadGlobal("require");
 				this.loadGlobal("requirejs");
 
-					// now instantiate the require library in this context's path
-				fw.runScript(path(this.path, "require.js"));
+					// now instantiate the require library at the path and 
+					// filename passed to us from dispatchRequire
+				fw.runScript(this.requirePath);
 
 				try {
 					require.call;
@@ -472,15 +520,18 @@
 					// to make a prettier context name, remove the path to the app
 					// Commands directory, or replace it with USER if it's in the
 					// user directory
-				return unescape(inPath.replace(fw.appJsCommandsDir, "")
-					.replace(fw.userJsCommandsDir, "USER"));
+				return unescape(inPath.replace(unescape(fw.appJsCommandsDir), "")
+					.replace(unescape(fw.userJsCommandsDir), "USER"));
 			}
 		}; // end of Context.prototype
 
 
 			// register our Context instance with the dispatchRequire global
 		if (typeof require == "function") {
-			require.registerContext(new Context());
+			var context = new Context(),
+				config = require.registerContext(context);
+
+			context.config(config);
 		}
 	}
 
