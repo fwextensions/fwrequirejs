@@ -12,9 +12,21 @@
 	and the next script that used require wouldn't have to pass a baseUrl
 	or could create a context without requiring fwrequire in the caller's 
 		baseUrl path
+	some requirejs tests use require.config()
+	should also support specifying configuration as a require object that's set
+		up before fwrequire.js loads
 
-- we don't really need the baseFilename property if the user can pass in a
-	fwrequirePath property 
+- test running one script to load its fwrequire, then call another in a 
+	different folder with a different version
+
+- test loading a large library like dojo
+
+- exports tests from requirejs don't work because we don't have require.confg()
+
+- can't load require, then pass a config with a baseUrl pointing at a folder
+	that doesn't have fwrequire.js in it
+	because the dispatcher looks at the baseUrl, sees a new path, then tries to 
+	load fwrequire.js at that path
 
 - if fwrequire.js can't be found at lib/ and a baseUrl isn't passed, then we
 	should just create a new Context object at the caller's path using the
@@ -25,11 +37,6 @@
 
 - test calling require(), and in that calling another require() with a different
 	path, which causes a different fwrequire.js to be loaded
-
-- can't load require, then pass a config with a baseUrl pointing at a folder
-	that doesn't have fwrequire.js in it
-	because the dispatcher looks at the baseUrl, sees a new path, then tries to 
-	load fwrequire.js at that path
 
 - should be able to call runScript from a script within /lib to load this file and have it 
 	default to the current /lib directory as the baseUrl
@@ -75,6 +82,11 @@
 
 
 # Done:
+
+- test destroyAll()
+
+- we don't really need the baseFilename property if the user can pass in a
+	fwrequirePath property 
 
 - shouldn't name Context in execute method
 	should probably create the name when it's registered 
