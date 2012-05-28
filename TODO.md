@@ -5,16 +5,49 @@
 	having a module define a name for itself and then move the module
 		to a different folder has poor error message 
 
-- maybe provide require.config() call that sets up the configuration 
-	for dispatchRequire
-	would help with testing, allowing a new context path to be added without
-	having to require a module 
-	and the next script that used require wouldn't have to pass a baseUrl
-	or could create a context without requiring fwrequire in the caller's 
-		baseUrl path
-	some requirejs tests use require.config()
-	should also support specifying configuration as a require object that's set
-		up before fwrequire.js loads
+- probably shouldn't support non-absolute baseUrl paths, since it assumes the
+	caller is in a parent directory of lib
+
+- support calling require with just a config object
+
+- have way to trace calls to attach so you can see what files are needed
+
+- the problem with calling require.config() and then calling the function that's
+	returned by that is that define still points to the dispatcher
+	but maybe that's okay if it gets dispatched to the same context?
+	it might work, but context.execute always passes in a config object with 
+		the context's path as the baseUrl
+		and requirejs doesn't recognize that as a define call
+	do we need to always pass a config?
+	maybe config has to wrap the function returned from require so that when it's
+		called, it dispatches to the correct requirejs 
+		that way, define will be set up correctly 
+		need to pass the right contextPath into the config inside the wrapped function
+		test calling the function multiple times, with different define modules
+
+- we should probably completely change how paths are handled
+	the context path should not be the baseUrl, but the path to the scripts that
+		are calling require
+	then wouldn't have to always pass a config to require() with the baseUrl == context.path
+	but then we couldn't have lib/ be the default location to look for scripts
+		can set up a baseUrl in a config object before loading requirejs
+	but even if we do that, define still points at the dispatcher, so if you
+		call a function returned from require.config(), that will call .js files
+		where define is called, which calls the dispatcher, which then tries to
+		find a context for the calling file.  it won't find one, so it creates a
+		new context at that path, which means the define won't define the module
+		in the right context.
+
+- let the caller set a global var before running fwrequire so that the library
+	knows which context path to default to
+
+- call require.onError if attached url can't be found
+	include filename in error 
+
+- add toUrl, nameToUrl, defined, specified methods to dispatcher
+
+- the setTimeout calls in the multiversion test don't work
+	is the timeout supposed to be in the same context?
 
 - test running one script to load its fwrequire, then call another in a 
 	different folder with a different version
@@ -48,8 +81,6 @@
 - use alerts for error reporting or throw errors? 
 	better to throw for testing
 
-- should Context be a singleton?
-
 - do we still need the preservedGlobalsStack?
 
 - run through jslint
@@ -82,6 +113,25 @@
 
 
 # Done:
+
+- should Context be a singleton?
+
+- maybe provide require.config() call that sets up the configuration 
+	for dispatchRequire
+	would help with testing, allowing a new context path to be added without
+	having to require a module 
+	and the next script that used require wouldn't have to pass a baseUrl
+	or could create a context without requiring fwrequire in the caller's 
+		baseUrl path
+	some requirejs tests use require.config()
+	should also support specifying configuration as a require object that's set
+		up before fwrequire.js loads
+	would need to return a reference to require from require.config()
+	actually, maybe having config() is not a good idea
+	it's supposed to change the default configuration for the next call to require
+	but if there's no way to control what script runs next, you basically have to
+	call it from every .jsf
+	in which case you might as well always pass the config as the first param
 
 - test destroyAll()
 

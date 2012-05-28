@@ -14,17 +14,77 @@
    ======================================================================== */
 
 
+/*
+	fwrequire.js manages the loading of multiple require.js files, so that 
+	different versions of both fwrequire.js and require.js can co-exist in the
+	same global scope.  Assuming a file structure like:
+
+		Commands/
+			Extension 1/
+				lib/
+					fwrequire.js
+					require.js
+				Command A.jsf
+				Command B.jsf
+			Extension 2/
+				lib/
+					fwrequire.js
+					require.js
+				Command C.jsf
+				Command D.jsf
+
+	- The user runs Extension 2/Command C.jsf
+	- fw.currentScriptDir is Extension 2/
+	- The global require is undefined, so Command C runs lib/fwrequire.js
+	- fw.currentScriptDir is now Extension 2/lib/
+	- _initialContextPath is set to the parent directory of fw.currentScriptDir,
+	  which is Extension 2/
+	- setupDispatcher() runs and creates the global require()
+	- require() is called from within Command C.jsf
+	- fw.currentScriptDir is null, so contextPath defaults to _initialContextPath
+	- requirePath and fwrequirePath default to _initialContextPath/lib
+	- Extension 2/lib/fwrequire.js is run and calls setupContext()
+	- The Context registers with dispatchRequire and is told its path is 
+	  Extension 2/ and the requirePath is Extension 2/lib/
+	- The Context sets up a config of { baseUrl: "lib" } and then runs 
+	  Extension 2/lib/require.js
+	- The Context dispatches the require call to the require() created by 
+	  Extension 2/lib/require.js, and the real require does its magic
+	- The Context saves off the "real" require global and restores the require
+	  function created by setupDispatcher()
+	- The user runs Extension 1/Command A.jsf
+	- The global require is already defined, so Command A doesn't run lib/require.js
+	- fw.currentScriptDir is Extension 1/
+	- The global dispatchRequire looks for a context at Extension 1/ and doesn't
+	  find one
+	- requirePath defaults to Extension 1/lib
+	- Extension 1/lib/require.js is run and calls its own setupContext(), but 
+	  not setupDispatcher(), since the global require is already defined
+	- The Context registers with dispatchRequire and is told its path is 
+	  Extension 1/ and the requirePath is Extension 1/lib/
+	- The Context sets up a config of { baseUrl: "lib" } and then runs 
+	  Extension 1/lib/require.js
+	- The Context dispatches the require call to the require() created by 
+	  Extension 1/lib/require.js, and the real require does its magic
+	- The Context saves off the "real" require global and restores the require
+	  function created by setupDispatcher() in Extension 2/lib/fwrequire.js
+*/
+
+
 // ===========================================================================
 (function fwRequireSetup() {
 	function path()
 	{
-		var path = arguments[0];
+			// make sure we have a string, in case null or undefined is passed
+		var path = arguments[0] + "";
 
 		for (var i = 1; i < arguments.length; i++) {
-			var lastChar = path.slice(-1);
+			var lastChar = path.slice(-1),
+					// force nextArgument to be a string
+				nextArgument = arguments[i] + "";
 
 				// make sure there is exactly one / between each argument
-			if (lastChar != "/" && arguments[i][0] != "/") {
+			if (lastChar != "/" && nextArgument[0] != "/") {
 				path += "/";
 			}
 
@@ -35,20 +95,21 @@
 	}
 
 
+		// get a reference to the global object.  this would be "window"
+		// in a browser, but isn't named in Fireworks.
+	var _global = (function() { return this; })();
+	
+
 	// =======================================================================
 	function setupDispatcher() 
 	{
 			// a hash to store each Context by name
 		var _contexts = {},
-				// get a reference to the global object.  this would be "window"
-				// in a browser, but isn't named in Fireworks.
-			_global = (function() { return this; })(),
-				// we have to keep track of the currentScriptDir when we're first loaded
-				// because it will be empty the first time context() is called after
-				// we're first loaded.  the code that's calling us is in the directory
-				// above the /lib/
-			_initialContextPath = fw.currentScriptDir,
-			_initialCallerPath = Files.getDirectory(fw.currentScriptDir),
+				// we have to keep track of the currentScriptDir when we're first 
+				// loaded because it will be empty on the next call to require().
+				// we assume the code that's calling us is in the directory above 
+				// where we're being called.
+			_initialContextPath = Files.getDirectory(fw.currentScriptDir),
 				// this module global stores the requested Context path info
 				// while the Context code is loaded, and is returned to the
 				// Context when it calls registerContext()
@@ -59,60 +120,58 @@
 		var dispatchRequire = _global.require = _global.define = function dispatchRequire(
 			inConfig)
 		{
-				// if currentScriptDir is null, it means this is the first require()
-				// call after we were loaded via runScript, so fall back to the
-				// _initialCallerPath we stored above
-			var callerPath = fw.currentScriptDir || _initialCallerPath,
-					// if there's a currentScriptDir, then that means the 
-					// context has already been set up, so we don't know where
-					// the fwrequire.js file is located relative to the calling
-					// file.  by default, assume it's in a lib subfolder. 
-				contextPath = fw.currentScriptDir ? path(fw.currentScriptDir, "lib/") : 
-					_initialContextPath,
-				requirePath = contextPath,
-				fwrequirePath = contextPath,
+				// if there's a currentScriptDir, then that means the context
+				// has already been set up, so assume we're being called from
+				// the directory above the baseUrl.  otherwise, default to
+				// _initialContextPath.
+			var contextPath = fw.currentScriptDir || _initialContextPath,
+					// by default, assume require.js and fwrequire.js are in a
+					// lib folder under the context folder
+				requirePath = path(contextPath, "lib/"),
+				fwrequirePath = requirePath,
 				context;
-
-				// make sure inConfig is an object but not an array 
-			if (inConfig && typeof inConfig == "object" && !(inConfig instanceof Array)) {
+				
+			if (inConfig) {
 				if (inConfig.baseUrl) {
 						// use the config's baseUrl as the path to the Context
-						// code, and make sure it's absolute
-					contextPath = inConfig.baseUrl;
-
-					if (contextPath.indexOf("file://") != 0) {
-						contextPath = path(callerPath, contextPath);
-					}
-
-					fwrequirePath = requirePath = contextPath;
+						// and require files
+					fwrequirePath = requirePath = inConfig.baseUrl;
+				}
+				
+				if (inConfig.contextPath) {
+					contextPath = inConfig.contextPath;
+					
+						// don't pass this to the real require()
+					delete inConfig.contextPath;
 				}
 				
 				if (inConfig.requirePath) {
-						// use the config's requirePath as the path to the 
-						// require.js file
+						// also default fwrequirePath to requirePath, in case
+						// fwrequirePath isn't set separately
 					fwrequirePath = requirePath = inConfig.requirePath;
 					
-						// this is needed only for setting up the context the
-						// first time a new path is encountered, so don't pass
-						// it to the real require
+					if (requirePath.slice(-3) == ".js") {
+							// a path directly to the require.js file was passed
+							// in, so fwrequirePath should default to that file's
+							// directory, not the require.js file itself
+						fwrequirePath = Files.getDirectory(requirePath);
+					}
+					
+						// don't pass this to the real require()
 					delete inConfig.requirePath;
 				}
 				
 				if (inConfig.fwrequirePath) {
-						// use the config's fwrequirePath as the path to the 
-						// require.js file
 					fwrequirePath = inConfig.fwrequirePath;
 					
-						// this is needed only for setting up the context the
-						// first time a new path is encountered, so don't pass
-						// it to the real require
+						// don't pass this to the real require()
 					delete inConfig.fwrequirePath;
 				}
 			}
-
+			
 				// make sure the contextPath ends in a / and unescape it, to
 				// ensure that paths match regardless of whether they're passed
-				// in escaped or not
+				// in escaped or not.  use that as a key to the context object.
 			contextPath = unescape(path(contextPath, ""));
 			context = _contexts[contextPath];
 
@@ -124,14 +183,19 @@
 				if (fwrequirePath.slice(-3) != ".js") {
 					fwrequirePath = path(fwrequirePath, "fwrequire.js");
 				}
+				
+				if (fwrequirePath.indexOf("file://") != 0) {
+						// it's a relative path, so make it relative to the context
+					fwrequirePath = path(contextPath, fwrequirePath);
+				}
 
 				if (Files.exists(fwrequirePath)) {
-						// save the current contextPath, which we'll use when the
-						// Context calls registerContext after we run its JS
+						// save the current contextPath and requirePath, which 
+						// we'll return to the new Context when it calls 
+						// registerContext after we run its JS file
 					_newContextInfo = {
 						path: contextPath,
-						requirePath: requirePath,
-						currentScriptDir: callerPath
+						requirePath: requirePath
 					};
 					fw.runScript(fwrequirePath);
 					
@@ -144,7 +208,7 @@
 			if (context) {
 					// dispatch the execute call to the Context instance for the 
 					// requested path
-				context.execute.apply(context, arguments);
+				return context.execute.apply(context, arguments);
 			} else {
 				alert("FWRrequireJS error:\nFile could not be found: " + unescape(fwrequirePath));
 			}
@@ -152,7 +216,26 @@
 
 
 		dispatchRequire.version = 0.1;
-		dispatchRequire.path = unescape(_initialContextPath);
+		
+			// remember the path to the file that instantiated us
+		dispatchRequire.path = unescape(fw.currentScriptDir);
+		
+			// add these to match RequireJS, in case there's code that wants to
+			// inspect them before calling require()
+		dispatchRequire.amd = {
+			multiversion: true,
+			plugins: true,
+			jQuery: true
+		};
+		dispatchRequire.isAsync = dispatchRequire.isBrowser = false;
+
+
+		// ===================================================================
+		dispatchRequire.config = function config(
+			inConfig)
+		{
+			return dispatchRequire(inConfig);
+		}
 
 
 		// ===================================================================
@@ -223,36 +306,39 @@
 	// =======================================================================
 	function setupContext() 
 	{
-			// get a reference to the global object.  this would be "window"
-			// in a browser, but isn't named in Fireworks.
-		var _global = (function() { return this; })();
-
-
 		// ===================================================================
-		function Context()
-		{
+		var Context = {
+			version: 0.1,
 				// these are the globals that belong to the context and will 
 				// be saved after the context execution exits
-			this.globals = {};
-
+			globals: {},
 				// these are the globals that are being overridden by the current
 				// execution of the context
-			this.preservedGlobals = {};
-
+			preservedGlobals: {},
 				// this is a stack of previously preserved globals, so that we can
 				// support nested contexts 
-			this.preservedGlobalsStack = [];
-		}
-
-
-		// ===================================================================
-		Context.prototype = {
-			version: 0.1,
+			preservedGlobalsStack: [],
 			name: "",
 			path: "",
 			requirePath: "",
-			currentScriptDir: "",
 			loadedRequire: false,
+			
+			
+			// ===============================================================
+			init: function init(
+				inRequire)
+			{
+				if (typeof inRequire == "function") {
+						// we assume the right kind of require is loaded and that it
+						// has a registerContext method.  if not, the try/catch below
+						// should catch the exception and show a reasonable error.
+					var config = inRequire.registerContext(this);
+
+						// registerContext returns useful path information about 
+						// this context
+					this.config(config);
+				}
+			},
 			
 			
 			// ===============================================================
@@ -280,7 +366,6 @@
 					// Context instance at this path, while require may manage
 					// additional sub-contexts.
 				this.name = this.prettifyPath(this.path);
-				this.currentScriptDir = inConfig.currentScriptDir;
 				this.requirePath = inConfig.requirePath || (path(this.path, "require.js"));
 
 				if (this.requirePath.indexOf("file://") != 0) {
@@ -298,58 +383,32 @@
 
 			// ===============================================================
 			execute: function execute(
-				inConfig,
-				inDependencies,
-				inCallback)
+				inConfig)
 			{
-					// adjust the optional parameters 
-				if (typeof inConfig == "function") {
-					inCallback = inConfig;
-					inDependencies = [];
-					inConfig = {};
-				} else if (inConfig instanceof Array || typeof inConfig == "string") {
-					inCallback = inDependencies;
-					inDependencies = inConfig;
-					inConfig = {};
-				} 
-				
-				if (typeof inDependencies == "function") {
-					inCallback = inDependencies;
-					inDependencies = [];
-				}
-
 					// before executing the callback, restore our previously 
 					// saved globals
 				this.restoreGlobals();
 
 				if (!this.loadedRequire) {
-						// we've never been executed before, so load the require library
-						// before the callback is called, since it will expect that 
-						// require is already loaded
-					this.loadRequire();
+						// we've never been executed before, so load the require 
+						// library before the callback is called
+					this.loadRequire(inConfig);
 				}
 
-				inConfig.baseUrl = this.path;
-
-					// we can't call this "name", because require.name is the 
-					// name of the require function and is read-only, and there's
-					// already a contextName property on the function, since 
-					// that's a local var of require().  to avoid confusion, use
-					// these names.
-				require.currentContextName = inConfig.context;
-				require.currentContextPath = inConfig.baseUrl;
+				require.currentContextPath = inConfig ? inConfig.baseUrl : this.path;
+				require.currentContextName = inConfig ? inConfig.context : this.name;
 				
-					// if fwrequire.js was loaded by the caller, then after the
-					// runScript line, fw.currentScriptDir will be null.  the
-					// dispatchRequire function stored the caller's original 
-					// path, so store that on require so that the module doesn't
-					// have to save off its path before calling runScript.
-				require.currentScriptDir = this.currentScriptDir;
+				if (inConfig.context && !inConfig.baseUrl) {
+						// a context name was passed in, but no baseUrl, which 
+						// means require will create a new context and default
+						// its baseUrl to ./.  but we want the default to be lib/.
+					inConfig.baseUrl = "lib";
+				}
 
 				try {
 						// call this context's instance of the require global, which
 						// should be loaded or restored by now 
-					var result = require(inConfig, inDependencies, inCallback);
+					var result = require.apply(_global, arguments);
 				} catch (exception) {
 					if (exception.lineNumber) {
 						alert(["FWRrequireJS error in context: " + this.name.quote(), exception.message,
@@ -373,7 +432,8 @@
 
 
 			// ===============================================================
-			loadRequire: function loadRequire()
+			loadRequire: function loadRequire(
+				inConfig)
 			{
 					// these are the three globals that require() creates.  
 					// loading them now won't restore any previous value (since 
@@ -382,14 +442,22 @@
 				this.loadGlobal("define");
 				this.loadGlobal("require");
 				this.loadGlobal("requirejs");
+				
+					// use the baseUrl from inConfig, if any, or default to lib
+					// for the baseUrl for this instance of require, which will
+					// read this global config object when it loads.  this 
+					// probably isn't strictly necessary, since a non-lib baseUrl
+					// should almost always be passedin via a config object on
+					// each require call.
+				require = {
+					baseUrl: (inConfig && inConfig.context && inConfig.baseUrl) || "lib"
+				};
 
 					// now instantiate the require library at the path and 
 					// filename passed to us from dispatchRequire
 				fw.runScript(this.requirePath);
 
-				try {
-					require.call;
-				} catch (exception) { 
+				if (typeof require != "function") {
 						// the require library must not be installed 
 					alert(["FWRrequireJS error in context: " + this.name.quote(), 
 						"require.js was not found in " + this.path].join("\n"));
@@ -400,7 +468,7 @@
 				var libPath = this.path;
 
 					// override the attach method on require to use a synchronous
-					// file load to load the module 
+					// runScript call to load the module 
 				require.attach = function attach(
 					url, 
 					context, 
@@ -523,16 +591,10 @@
 				return unescape(inPath.replace(unescape(fw.appJsCommandsDir), "")
 					.replace(unescape(fw.userJsCommandsDir), "USER"));
 			}
-		}; // end of Context.prototype
+		}; // end of Context
 
-
-			// register our Context instance with the dispatchRequire global
-		if (typeof require == "function") {
-			var context = new Context(),
-				config = require.registerContext(context);
-
-			context.config(config);
-		}
+			// tell the Context to register with the global dispatcher 
+		Context.init(require);
 	}
 
 
