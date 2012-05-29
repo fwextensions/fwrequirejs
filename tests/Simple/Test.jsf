@@ -4,8 +4,9 @@
 
    ======================================================================== */
 
-if (typeof require != "function") 
-	fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); 
+
+if (typeof require != "function" || !require.version) {
+	fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
 
 require([
 	"foo"

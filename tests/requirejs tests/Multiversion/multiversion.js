@@ -32,10 +32,9 @@ doh.register(
 				{
 				context: "version1",
 				baseUrl: "version1/",
-				requirePath: currentScriptDir + "../../lib/"
+				requirePath: currentScriptDir + "../.."
 				},
-				["require", "alpha", "beta", "gamma.js"],
-//				["require", "alpha", "beta", "version1/gamma.js"],
+				["require", "alpha", "beta", "version1/gamma.js"],
 				function(require, alpha, beta) {
 				//Notice no module arg name for gamma in the function call.
 				//gamma in the log call below will be a global created by gamma.js.
@@ -73,8 +72,7 @@ doh.register(
 //			contextPath: currentScriptDir,
 //			requirePath: currentScriptDir + "../../lib/"
 //			})(
-//			["require", "alpha", "beta", "epsilon.js"],
-////			["require", "alpha", "beta", "version2/epsilon.js"],
+//			["require", "alpha", "beta", "version2/epsilon.js"],
 //			function(require, alpha, beta) {
 //			//Notice no module arg name for epsilon in the function call.
 //			//epsilon in the log call below will be a global created by epsilon.js.
@@ -100,7 +98,8 @@ doh.register(
 //			callbacks[i]();
 //		}
 
-		return master;
+// don't return the master Deferred, since we're not done yet
+//		return master;
 		}
 	}
 	]

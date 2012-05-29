@@ -28,7 +28,7 @@ require([
 	
 	
 	var paths = Files.enumFiles(currentScriptDir);
-/*
+
 		// look through our subfolders, and if there's a Test.js file, run it,
 		// which should register that folder's test
 	dojo.forEach(paths, function(path) {
@@ -64,7 +64,7 @@ require([
 			tearDown: resetGlobals
 		}
 	);
-*/
+	
 		// run our tests before any RequireJS tests, since each one of thoses
 		// calls doh.run itself
 	doh.run();
@@ -72,8 +72,8 @@ require([
 	var rjsTestsPath = currentScriptDir + "requirejs tests/",
 		rjsTests = [],
 		rjsPaths = Files.enumFiles(rjsTestsPath),
-		requirePath = currentScriptDir + "../lib/";
-/*
+		requirePath = currentScriptDir + "../";
+
 		// look through the subfolders of the requirejs tests folder, and then
 		// look for a file named something like *-tests.js
 	dojo.forEach(rjsPaths, function(path) {
@@ -87,7 +87,7 @@ require([
 			});
 		}
 	});
-*/
+
 		// this test doesn't have the same structure as the others, so explicitly
 		// add its path
 	rjsTests.push(rjsTestsPath + "Multiversion/multiversion.js");

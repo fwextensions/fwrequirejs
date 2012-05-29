@@ -5,8 +5,8 @@
    ======================================================================== */
 
 
-try { require.call; } catch (e) 
-	{ fw.runScript(fw.currentScriptDir + "/resources/fwrequire.js"); }
+if (typeof require != "function" || !require.version) {
+	fw.runScript(fw.currentScriptDir + "/resources/fwrequire.js"); }
 
 require({ baseUrl: "resources" }, [
 	"foo"

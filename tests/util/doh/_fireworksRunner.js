@@ -27,10 +27,6 @@
 
 /*
 	To do:
-		- copy moment.js to each test that needs it
-
-		- copy tests from requirejs
-
 		- test getting context paths
 
 		- possibly create better test harness that evaluates strings in the context
@@ -47,6 +43,8 @@
 			would be slower than copying the file 
 
 	Done:
+		- copy tests from requirejs
+
 		- could put fwdoh in FW runner script
 */
 
@@ -191,9 +189,9 @@ define([
 			fwrequirePath = this.path(currentScriptDir, fwrequirePath);
 			requirePath = this.path(Files.getDirectory(fwrequirePath), "require.js");
 			Files.deleteFileIfExisting(fwrequirePath);
-			Files.copy(this.path(currentScriptDir, "../../lib/fwrequire.js"), fwrequirePath);
+			Files.copy(this.path(currentScriptDir, "../../fwrequire.js"), fwrequirePath);
 			Files.deleteFileIfExisting(requirePath);
-			Files.copy(this.path(currentScriptDir, "../../lib/require.js"), requirePath);
+			Files.copy(this.path(currentScriptDir, "../../require.js"), requirePath);
 
 			doh.register(
 				"fwrequire",

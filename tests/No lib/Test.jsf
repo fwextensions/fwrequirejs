@@ -5,16 +5,17 @@
 
    ======================================================================== */
 
+
 (function() {
 
-var currentScriptDir = fw.currentScriptDir + "/",
-	requirePath = currentScriptDir + "../../lib/";
+	// we have to save fw.currentScriptDir before calling runScript because that
+	// will leave fw.currentScriptDir null
+var requirePath = fw.currentScriptDir + "/../../";
 
-try { require.call; } catch (e) 
-	{ fw.runScript(requirePath + "fwrequire.js"); }
+if (typeof require != "function" || !require.version) {
+	fw.runScript(requirePath + "fwrequire.js"); }
 
-
-require({ baseUrl: currentScriptDir, requirePath: requirePath }, [
+require({ baseUrl: "./", requirePath: requirePath }, [
 	"foo"
 ], function NoLib(
 	foo)

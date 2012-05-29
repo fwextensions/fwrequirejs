@@ -5,8 +5,8 @@
    ======================================================================== */
 
 
-try { define.call; } catch (e) 
-	{ fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
+if (typeof require != "function" || !require.version) {
+	fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
 
 define([
 	"foo"

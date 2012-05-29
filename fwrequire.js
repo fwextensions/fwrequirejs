@@ -491,9 +491,11 @@
 							// exist.  so force it to use our lib path. 
 						url = path(libPath, url);
 					}
-
-					fw.runScript(url);
-					context.completeLoad(moduleName);
+					
+					if (Files.exists(url)) {
+						fw.runScript(url);
+						context.completeLoad(moduleName);
+					}
 				};
 
 					// save an easily accessible reference to our require instance
