@@ -1129,7 +1129,6 @@ var requirejs, require, define;
          * Resumes tracing of dependencies and then checks if everything is loaded.
          */
         resume = function () {
-//return trace(this, "resume");			
             var manager, map, url, i, p, args, fullName;
 
             //Any defined modules in the global queue, intake them now.
@@ -1332,8 +1331,6 @@ var requirejs, require, define;
             },
 
             require: function (deps, callback, relModuleMap) {
-//console.showStack();		
-//return trace(this, "context.require");				
                 var moduleName, fullName, moduleMap;
                 if (typeof deps === "string") {
                     if (isFunction(callback)) {
@@ -1551,8 +1548,6 @@ var requirejs, require, define;
      * name for minification/local scope use.
      */
     req = requirejs = function (deps, callback) {
-//console.showStack();		
-//return trace(this, "require");				
 
         //Find the right context, use default
         var contextName = defContextName,
@@ -1581,7 +1576,6 @@ var requirejs, require, define;
         if (config) {
             context.configure(config);
         }
-//log("callback", callback+"");
 
         return context.require(deps, callback);
     };

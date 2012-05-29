@@ -17,7 +17,17 @@
 /*
 	fwrequire.js manages the loading of multiple require.js files, so that 
 	different versions of both fwrequire.js and require.js can co-exist in the
-	same global scope.  Assuming a file structure like:
+	same global scope.  fwrequire.js is basically two scripts in one.  Whichever
+	.jsf file runs first will load its fwrequire.js file, and the setupDispatcher
+	function will be called, since there's no global require at that point.
+
+	When require() is called subsequently, the dispatcher looks to see if it has 
+	a Context object at the path of the .jsf file calling require().  If not, it 
+	looks for fwrequire.js at that path and runs it, which will cause that file's
+	setupContext() function to be called.  That way, each path gets its own 
+	Context object that manages its own copy of require.js.
+
+	Assuming the following file structure:
 
 		Commands/
 			Extension 1/
@@ -130,7 +140,7 @@
 				requirePath = path(contextPath, "lib/"),
 				fwrequirePath = requirePath,
 				context;
-				
+
 			if (inConfig) {
 				if (inConfig.baseUrl) {
 						// use the config's baseUrl as the path to the Context
