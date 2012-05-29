@@ -1,0 +1,143 @@
+// ===========================================================================
+try { (function() {
+
+console.clear();
+
+	// save our path before calling runScript
+var currentScriptDir = fw.currentScriptDir + "/";
+
+	// load the dojo loader so that we can then load doh
+fw.runScript(currentScriptDir + "Load dojo.js"); 
+
+require([
+	"dojo",
+	"doh"
+], function(
+	dojo,
+	doh)
+{
+	function resetGlobals()
+	{
+			// the dojo loader creates these globals, or they might be left 
+			// over from a previous test, so make sure we delete them first.  
+			// otherwise, require won't load itself.
+		delete require;
+		delete requirejs;
+		delete define;
+	}
+	
+	
+	var paths = Files.enumFiles(currentScriptDir);
+/*
+		// look through our subfolders, and if there's a Test.js file, run it,
+		// which should register that folder's test
+	dojo.forEach(paths, function(path) {
+		if (Files.isDirectory(path) && Files.exists(path + "/Test.js")) {
+			fw.runScript(path + "/Test.js");
+		}
+	})
+
+	doh.register(
+		"fwrequire",
+		{
+			name: "Running multiple commands with same require",
+			setUp: resetGlobals,
+			runTest: function(t)
+			{
+				console.time("First module load");
+				fw.runScript(currentScriptDir + "Simple/Test.jsf");
+				console.timeEnd("First module load");
+				t.t(function() { return require.getContextPaths().length == 1 });
+				
+					// load the same module again to calculate the overhead of
+					// the require initialization
+				console.time("Second module load");
+				fw.runScript(currentScriptDir + "Simple/Test.jsf");
+				console.timeEnd("Second module load");
+				
+				fw.runScript(currentScriptDir + "Different Folder/Test.jsf");
+				t.t(function() { return require.getContextPaths().length == 2});
+				
+				require.destroyAll();
+				t.t(function() { return require.getContextPaths().length == 0});
+			},
+			tearDown: resetGlobals
+		}
+	);
+*/
+		// run our tests before any RequireJS tests, since each one of thoses
+		// calls doh.run itself
+	doh.run();
+
+	var rjsTestsPath = currentScriptDir + "requirejs tests/",
+		rjsTests = [],
+		rjsPaths = Files.enumFiles(rjsTestsPath),
+		requirePath = currentScriptDir + "../lib/";
+/*
+		// look through the subfolders of the requirejs tests folder, and then
+		// look for a file named something like *-tests.js
+	dojo.forEach(rjsPaths, function(path) {
+		if (Files.isDirectory(path)) {
+			var files = Files.enumFiles(path);
+			
+			dojo.forEach(files, function(file) {
+				if (/-tests\.js$/.test(file)) {
+					rjsTests.push(file);
+				}
+			});
+		}
+	});
+*/
+		// this test doesn't have the same structure as the others, so explicitly
+		// add its path
+	rjsTests.push(rjsTestsPath + "Multiversion/multiversion.js");
+
+		// run the RequireJS tests
+	dojo.forEach(rjsTests, function(path) {
+			// clear the globals to force a fresh FWRrequireJS to load 
+		resetGlobals();
+		
+			// load require from the main lib directory and configure it with a
+			// contextPath that points to the test file's directory and a requirePath
+			// that points to the main lib.  that way, we don't have to modify
+			// the test files from RequireJS, since the global FWRrequireJS will
+			// be set up before they run.
+		fw.runScript(requirePath + "fwrequire.js"); 
+		require({
+			contextPath: Files.getDirectory(path),
+			requirePath: requirePath
+		});
+
+			// the RequireJS tests use a baseUrl of "./" if they think they're
+			// running in a browser, which is what we want.  since we runScript
+			// on the test file, require will look for a context at 
+			// fw.currentScriptDir, which is what we want to use as the baseUrl.
+			// so adding ./ to it will not change the path. 
+		require.isBrowser = true;
+
+			// run the test
+		fw.runScript(path);
+	});
+	
+		// clean up the globals.  since we have args with the same names, we
+		// need to do it in a function and use this
+	(function() {
+		delete this.dojo;
+		delete this.doh;
+		delete dijit;
+		delete dojox;
+		delete dojoConfig;
+		delete tests;
+		delete require;
+		delete requirejs;
+		delete define;
+	})();
+});
+
+})(); } catch (exception) {
+	if (exception.lineNumber) {
+		alert([exception, exception.lineNumber, exception.fileName].join("\n"));
+	} else {
+		throw exception;
+	}
+}

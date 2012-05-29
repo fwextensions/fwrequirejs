@@ -1,0 +1,21 @@
+/* ===========================================================================
+
+	Test that define can be used instead of require.
+
+   ======================================================================== */
+
+
+try { define.call; } catch (e) 
+	{ fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
+
+define([
+	"foo"
+], function DefineOnly(
+	foo)
+{
+	var message = "DefineOnly",
+		result = foo.bar(message);
+
+	doh.t(function() { return result.indexOf(message) == 0 });
+	doh.t(function() { return result.length > message.length });
+});

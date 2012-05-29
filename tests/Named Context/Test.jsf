@@ -1,0 +1,45 @@
+/* ===========================================================================
+
+	Test specifying a name for the context and getting different instances of
+	the same module in different contexts.
+
+   ======================================================================== */
+
+
+try { require.call; } catch (e) 
+	{ fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
+
+require({ context: "baz" }, [
+	"foo"
+], function SimpleTest(
+	foo)
+{
+	var message = "Named Context",
+		result = foo.bar(message);
+
+	foo.baz = 42;
+	
+	doh.t(function() { return result.indexOf(message) == 0 });
+	doh.t(function() { return result.length > message.length });
+	doh.t(function() { return require.currentContextName == "baz" });
+});
+
+require({ context: "baz" }, [
+	"foo"
+], function SimpleTest(
+	foo)
+{
+		// verify that we get the same foo module that was modified in the
+		// previous require context
+	doh.t(function() { return foo.baz == 42 });
+});
+
+require([
+	"foo"
+], function SimpleTest(
+	foo)
+{
+		// verify that we get a new copy of foo, since we're not in the same
+		// baz context 
+	doh.t(function() { return typeof foo.baz == "undefined" });
+});

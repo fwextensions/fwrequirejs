@@ -1,0 +1,20 @@
+/* ===========================================================================
+
+	Test requiring a module that requires another module.
+
+   ======================================================================== */
+
+if (typeof require != "function") 
+	fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); 
+
+require([
+	"foo"
+], function SimpleTest(
+	foo)
+{
+	var message = "Simple Test",
+		result = foo.bar(message);
+
+	doh.t(result.indexOf(message) == 0);
+	doh.t(result.length > message.length);
+});
