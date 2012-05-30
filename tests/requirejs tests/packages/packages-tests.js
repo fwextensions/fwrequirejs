@@ -1,24 +1,27 @@
 require({
-        baseUrl: require.isBrowser ? "./" : "./packages/",
+        baseUrl: requirejs.isBrowser ? "./" : "./packages/",
         paths: {
             'alpha/replace' : 'replace'
         },
-        packagePaths: {
-            'pkgs': [
-                'alpha',
-                {
-                    name: 'beta',
-                    location: 'beta/0.2/scripts',
-                    main: 'beta'
-                },
-                'dojox/chair',
-                {
-                    name: 'dojox/table',
-                    main: 'table'
-                }
-            ]
-        },
         packages: [
+            {
+                name: 'alpha',
+                location: 'pkgs/alpha'
+            },
+            {
+                name: 'beta',
+                location: 'pkgs/beta/0.2/scripts',
+                main: 'beta'
+            },
+            {
+                name: 'dojox/chair',
+                location: 'pkgs/dojox/chair'
+            },
+            {
+                name: 'dojox/table',
+                location: 'pkgs/dojox/table',
+                main: 'table'
+            },
             {
                 name: 'bar',
                 location: 'bar/0.4',
@@ -68,7 +71,11 @@ function(require,   alpha,   replace,         beta,   util,        bar,   baz,
                 t.is("foo", foo.name);
                 t.is("alpha", foo.alphaName);
                 t.is("foo/second", second.name);
-//                t.is((require.isBrowser ? "./foo/lib/../data.html" : "./packages/foo/lib/../data.html"), dataUrl);
+// when running in the FW test harness, the paths should be as if the code is
+// running in a browser.  we set isBrowser on the global dispatcher, but here
+// the actual require function is referenced, and it knows it's not in a browser.
+// so just check the expected browser URL, without checking isBrowser.
+                t.is("./foo/lib/../data.html", dataUrl);
                 t.is('dojox/chair', chair.name);
                 t.is('dojox/chair/legs', chair.legsName);
                 t.is('dojox/table', table.name);

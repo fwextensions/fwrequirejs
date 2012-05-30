@@ -25,8 +25,7 @@ require([
 		delete requirejs;
 		delete define;
 	}
-	
-	
+
 	var paths = Files.enumFiles(currentScriptDir);
 
 		// look through our subfolders, and if there's a Test.js file, run it,
@@ -115,9 +114,13 @@ require([
 			// so adding ./ to it will not change the path. 
 		require.isBrowser = true;
 
-			// run the test
+			// run the test.  for some reason, we also have to call doh.run()
+			// after running the script, even though it's called within the file.
+			// if we don't, the output is never displayed. 
 		fw.runScript(path);
+		doh.run();
 	});
+	
 	
 		// clean up the globals.  since we have args with the same names, we
 		// need to do it in a function and use this

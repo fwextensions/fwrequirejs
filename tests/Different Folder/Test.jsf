@@ -6,7 +6,7 @@
 
 
 if (typeof require != "function" || !require.amd) {
-	fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
+	fw.runScript(fw.currentScriptDir + "/resources/fwrequire.js"); }
 
 require({ baseUrl: "resources" }, [
 	"foo"

@@ -73,8 +73,6 @@ require([
 			setTimeout = function(
 				inCallback)
 			{
-				doh._paused = false;
-
 				return inCallback();
 			}
 		}
@@ -85,31 +83,10 @@ require([
 
 		dohRun.apply(this, arguments);
 		
+			// clean up the globals after running, in case this is the last 
+			// doh.run() call 
 		delete setTimeout;
 		delete print;
-		
-			// when the tests have finished, clean everything up, since each
-			// RequireJS test calls doh.run, rather than just registering 
-			// themselves, so it'll rerun our tests.  we have to do this after
-			// the real doh.run runs, rather than overriding _onEnd, because
-			// that is called before _report, and we don't want to zero everything
-			// out before reporting the stats. 
-		doh._testCount = 0;
-		doh._groupCount = 0;
-		doh._errorCount = 0;
-		doh._failureCount = 0;
-		doh._currentGroup = null;
-		doh._currentTest = null;
-		doh._paused = true;
-		doh._groups = {};
-		doh._testTypes= {};
-	}
-
-
-		// make calls to pause a noop, since there's no way to pause a test in FW
-	doh.pause = function() 
-	{
-		this._paused = false;
 	}
 	
 	

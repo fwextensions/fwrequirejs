@@ -127,7 +127,7 @@
 
 
 		// ===================================================================
-		var dispatchRequire = _global.require = _global.define = function dispatchRequire(
+		var dispatchRequire = _global.require = _global.define = _global.requirejs = function dispatchRequire(
 			inConfig)
 		{
 				// if there's a currentScriptDir, then that means the context
@@ -474,27 +474,34 @@
 					return;
 				}
 
-					// create a reference to our path for the attach method
-				var libPath = this.path;
+					// create a reference to this for the load method
+				var fwContext = this;
 
-					// override the attach method on require to use a synchronous
+					// override the load method on require to use a synchronous
 					// runScript call to load the module 
-				require.attach = function attach(
-					url, 
+				require.load = function load(
 					context, 
-					moduleName) 
+					moduleName,
+					url)
 				{
 					if (url.indexOf("file://") != 0) {
 							// if we're here, the required module name must end 
 							// in .js, which require tries to load from a path 
 							// relative to the HTML page, which obviously doesn't 
-							// exist.  so force it to use our lib path. 
-						url = path(libPath, url);
+							// exist.  so force it to use our context path. 
+						url = path(fwContext.path, url);
 					}
-					
+
 					if (Files.exists(url)) {
 						fw.runScript(url);
 						context.completeLoad(moduleName);
+					} else {
+						var error = new Error(["FWRrequireJS error in context: " 
+							+ fwContext.name.quote(),
+							"Module " + moduleName.quote() + " could not be found at " + url].join("\n"));
+						error.url = url;
+						error.module = moduleName;
+						this.onError(error);
 					}
 				};
 

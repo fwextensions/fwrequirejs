@@ -10,12 +10,14 @@
 
 	// we have to save fw.currentScriptDir before calling runScript because that
 	// will leave fw.currentScriptDir null
-var requirePath = fw.currentScriptDir + "/../../";
+var currentScriptDir = fw.currentScriptDir,
+	requirePath = fw.currentScriptDir + "/../../";
 
 if (typeof require != "function" || !require.amd) {
 	fw.runScript(requirePath + "fwrequire.js"); }
 
-require({ baseUrl: "./", requirePath: requirePath }, [
+	// specify that the baseUrl is in this directory
+require({ baseUrl: currentScriptDir, requirePath: requirePath }, [
 	"foo"
 ], function NoLib(
 	foo)
