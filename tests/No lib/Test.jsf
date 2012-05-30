@@ -12,7 +12,7 @@
 	// will leave fw.currentScriptDir null
 var requirePath = fw.currentScriptDir + "/../../";
 
-if (typeof require != "function" || !require.version) {
+if (typeof require != "function" || !require.amd) {
 	fw.runScript(requirePath + "fwrequire.js"); }
 
 require({ baseUrl: "./", requirePath: requirePath }, [

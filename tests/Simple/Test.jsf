@@ -5,7 +5,7 @@
    ======================================================================== */
 
 
-if (typeof require != "function" || !require.version) {
+if (typeof require != "function" || !require.amd) {
 	fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
 
 require([

@@ -48,7 +48,7 @@
 		- could put fwdoh in FW runner script
 */
 
-define([
+require([
 	"doh/runner"
 ], function(
 	doh) 
@@ -185,7 +185,7 @@ define([
 			
 				// we have to delete the existing files before we can copy new 
 				// ones over them.  these calls will silently fail if the 
-				// destination folder doesn't exist.
+				// destination folder doesn't exist, whic hit won't for some tets.
 			fwrequirePath = this.path(currentScriptDir, fwrequirePath);
 			requirePath = this.path(Files.getDirectory(fwrequirePath), "require.js");
 			Files.deleteFileIfExisting(fwrequirePath);
