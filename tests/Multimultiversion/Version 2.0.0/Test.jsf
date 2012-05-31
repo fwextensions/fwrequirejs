@@ -1,0 +1,22 @@
+/* ===========================================================================
+
+	Test requiring a module that requires another module.
+
+   ======================================================================== */
+
+
+if (typeof require != "function" || !require.amd) {
+	fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
+
+require([
+	"foo"
+], function SimpleTest(
+	foo)
+{
+	var message = "Simple Test",
+		result = foo.bar(message);
+
+	doh.t(function() { return result.indexOf(message) == 0 });
+	doh.t(function() { return result.length > message.length });
+	doh.t(function() { return isNaN(foo.baz) });
+});

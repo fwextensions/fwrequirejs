@@ -153,20 +153,13 @@ require([
 		},
 	
 		
-		registerRequireFixture: function(
-			inLibPath,
-			inTest)
+		copyRequireFiles: function(
+			inLibPath)
 		{
 			var currentScriptDir = fw.currentScriptDir + "/",
-				testName = Files.getFilename(currentScriptDir),
 				fwrequirePath = inLibPath,
 				requirePath;
 
-			if (!inTest) {
-				inTest = fwrequirePath;
-				fwrequirePath = "lib/fwrequire.js";
-			}
-			
 			if (fwrequirePath.slice(-3) != ".js") {
 					// just a folder name was passed in, so use the default filename
 				fwrequirePath = this.path(fwrequirePath, "fwrequire.js");
@@ -181,7 +174,24 @@ require([
 			Files.copy(this.path(currentScriptDir, "../../fwrequire.js"), fwrequirePath);
 			Files.deleteFileIfExisting(requirePath);
 			Files.copy(this.path(currentScriptDir, "../../require.js"), requirePath);
+		},
+	
+		
+		registerRequireFixture: function(
+			inLibPath,
+			inTest)
+		{
+			var currentScriptDir = fw.currentScriptDir + "/",
+				testName = Files.getFilename(currentScriptDir),
+				fwrequirePath = inLibPath;
 
+			if (!inTest) {
+				inTest = inLibPath;
+				fwrequirePath = "lib/fwrequire.js";
+			}
+			
+			this.copyRequireFiles(fwrequirePath);
+			
 			doh.register(
 				"fwrequire",
 				doh.fw.createRequireFixture(
