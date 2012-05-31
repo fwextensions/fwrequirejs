@@ -61,32 +61,44 @@ require([
 	log("Copyright (c) 2011, The Dojo Foundation, All Rights Reserved");
 	log(doh._line);
 
-
 		// wrap doh.run to create a dummy setTimeout function before the tests
-		// run and then delete the global after
+		// run and then delete the global after.  we also have to ensure that
+		// doh.run is called only once, after all the tests have been registered.
+		// otherwise, since each requirejs test calls doh.run, having doh.pause() 
+		// be a noop seems to cause all the tests to get run multiple times.
 	var dohRun = doh.run;
-	doh.run = function()
+	doh.run = function(
+		inDoIt)
 	{
-			// annoyingly, doh seems to depend on setTimeout, which doesn't exist.
-			// but just immediately calling the callback back seems to work.
-		if (typeof setTimeout != "function") {
-			setTimeout = function(
-				inCallback)
-			{
-				return inCallback();
+		if (inDoIt) {
+				// annoyingly, doh seems to depend on setTimeout, which doesn't exist.
+				// but just immediately calling the callback back seems to work.
+			if (typeof setTimeout != "function") {
+				setTimeout = function(
+					inCallback)
+				{
+					return inCallback();
+				}
 			}
-		}
-		
-			// create a global print function for any CommonJS tests that 
-			// expect one
-		print = log;
 
-		dohRun.apply(this, arguments);
-		
-			// clean up the globals after running, in case this is the last 
-			// doh.run() call 
-		delete setTimeout;
-		delete print;
+				// create a global print function for any CommonJS tests that 
+				// expect one
+			print = log;
+
+			dohRun.apply(this, arguments);
+
+				// clean up the globals after running, in case this is the last 
+				// doh.run() call 
+			delete setTimeout;
+			delete print;
+		}
+	}
+	
+	
+		// make calls to pause a noop, since there's no way to pause a test in FW
+	doh.pause = function() 
+	{
+		this._paused = false;
 	}
 	
 	

@@ -1,15 +1,5 @@
-(function() {
-
-var currentScriptDir = fw.currentScriptDir + "/",
-	requirePath = currentScriptDir + "../../../lib/";
-
-try { require.call; } catch (e) 
-	{ fw.runScript(requirePath + "fwrequire.js"); }
-
 require({
-		baseUrl: currentScriptDir, 
-		requirePath: requirePath,
-//        baseUrl: "./",
+        baseUrl: "./",
         paths: {
             "array": "impl/array"
         }
@@ -29,5 +19,3 @@ require({
         doh.run();
     }
 );
-
-})();

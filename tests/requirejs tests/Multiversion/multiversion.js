@@ -10,6 +10,11 @@ function done() {
 	master.callback(true);
 	}
 }
+
+	// save the currentScriptDir outside of the register call, since by the time
+	// the test function is called, currentScriptDir will be different or null
+var currentScriptDir = fw.currentScriptDir + "/";
+
 doh.register(
 	"multiversion",
 	[
@@ -18,8 +23,7 @@ doh.register(
 		timeout: 5000,
 		runTest: function() 
 		{
-			var callbacks = [],
-				currentScriptDir = fw.currentScriptDir + "/";
+			var callbacks = [];
 
 				// create a fake setTimeout
 			function setTimeout(
@@ -32,7 +36,7 @@ doh.register(
 				{
 				context: "version1",
 				baseUrl: "version1/",
-				requirePath: currentScriptDir + "../.."
+				contextPath: currentScriptDir
 				},
 				["require", "alpha", "beta", "version1/gamma.js"],
 				function(require, alpha, beta) {

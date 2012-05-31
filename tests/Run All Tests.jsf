@@ -63,10 +63,6 @@ require([
 			tearDown: resetGlobals
 		}
 	);
-	
-		// run our tests before any RequireJS tests, since each one of thoses
-		// calls doh.run itself
-	doh.run();
 
 	var rjsTestsPath = currentScriptDir + "requirejs tests/",
 		rjsTests = [],
@@ -88,8 +84,11 @@ require([
 	});
 
 		// this test doesn't have the same structure as the others, so explicitly
-		// add its path
-	rjsTests.push(rjsTestsPath + "Multiversion/multiversion.js");
+		// add its path.  actually, skip it for now.  because the test calls 
+		// require inside the doh fixture, it will use whatever the global points
+		// to when it is run.  but since we reset the globals after each test,
+		// require will be undefined in the fixture callback.
+//	rjsTests.push(rjsTestsPath + "Multiversion/multiversion.js");
 
 		// run the RequireJS tests
 	dojo.forEach(rjsTests, function(path) {
@@ -114,13 +113,14 @@ require([
 			// so adding ./ to it will not change the path. 
 		require.isBrowser = true;
 
-			// run the test.  for some reason, we also have to call doh.run()
-			// after running the script, even though it's called within the file.
-			// if we don't, the output is never displayed. 
+			// run the test
 		fw.runScript(path);
-		doh.run();
 	});
 	
+		// tell doh to run all the registered tests.  our wrapped doh.run will
+		// only actually run if we pass true, so that all the calls to it in
+		// the RequireJS tests are ignored.
+	doh.run(true);
 	
 		// clean up the globals.  since we have args with the same names, we
 		// need to do it in a function and use this
