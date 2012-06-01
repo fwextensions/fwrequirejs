@@ -127,29 +127,65 @@
 
 
 		// ===================================================================
+		function extractPath(
+			inPath)
+		{
+			if (typeof inPath == "function") {
+				try {
+						// this should be a function that triggers an exception.
+						// by catching the exception, we can determine the name
+						// of the file where the function was lexically defined,
+						// since fw.currentScriptDir is unreliable.  hackery!
+					inPath();
+				} catch (exception) { 
+					return Files.getDirectory(exception.fileName);
+				}
+			}
+			
+			return inPath;
+		}
+		
+		
+		// ===================================================================
 		var dispatchRequire = _global.require = _global.define = _global.requirejs = function dispatchRequire(
 			inConfig)
 		{
-				// if there's a currentScriptDir, then that means the context
-				// has already been set up, so assume we're being called from
-				// the directory above the baseUrl.  otherwise, default to
-				// _initialContextPath.
+				// if there's a currentScriptDir, then that means the dispatcher
+				// has already been set up, so use that as the context path.
+				// otherwise, default to _initialContextPath.
 			var contextPath = fw.currentScriptDir || _initialContextPath,
 					// by default, assume require.js and fwrequire.js are in a
 					// lib folder under the context folder
 				requirePath = path(contextPath, "lib/"),
 				fwrequirePath = requirePath,
+					// we may need to manipulate the arguments array, so create
+					// a proper array out of it
+				args = [].slice.call(arguments, 0),
 				context;
+				
+			if (typeof inConfig == "function") {
+					// passing a function that triggers an exception is a way to
+					// set the contextPath, since we can fish the caller's 
+					// filename out of the exception
+				contextPath = extractPath(inConfig);
+				fwrequirePath = requirePath = path(contextPath, "lib/");
+				
+					// we don't want ot pass this function to the real require,
+					// so pretend it doesn't exist 
+				args = args.slice(1);
+				inConfig = args[0];
+			}
 
 			if (inConfig) {
 				if (inConfig.baseUrl) {
 						// use the config's baseUrl as the path to the Context
 						// and require files
+					inConfig.baseUrl = extractPath(inConfig.baseUrl);
 					fwrequirePath = requirePath = inConfig.baseUrl;
 				}
 				
 				if (inConfig.contextPath) {
-					contextPath = inConfig.contextPath;
+					contextPath = extractPath(inConfig.contextPath);
 					
 						// don't pass this to the real require()
 					delete inConfig.contextPath;
@@ -158,7 +194,7 @@
 				if (inConfig.requirePath) {
 						// also default fwrequirePath to requirePath, in case
 						// fwrequirePath isn't set separately
-					fwrequirePath = requirePath = inConfig.requirePath;
+					fwrequirePath = requirePath = extractPath(inConfig.requirePath);
 					
 					if (requirePath.slice(-3) == ".js") {
 							// a path directly to the require.js file was passed
@@ -172,7 +208,7 @@
 				}
 				
 				if (inConfig.fwrequirePath) {
-					fwrequirePath = inConfig.fwrequirePath;
+					fwrequirePath = extractPath(inConfig.fwrequirePath);
 					
 						// don't pass this to the real require()
 					delete inConfig.fwrequirePath;
@@ -218,7 +254,7 @@
 			if (context) {
 					// dispatch the execute call to the Context instance for the 
 					// requested path
-				return context.execute.apply(context, arguments);
+				return context.execute.apply(context, args);
 			} else {
 				alert("FWRrequireJS error:\nFile could not be found: " + unescape(fwrequirePath));
 			}
@@ -376,7 +412,7 @@
 					// Context instance at this path, while require may manage
 					// additional sub-contexts.
 				this.name = this.prettifyPath(this.path);
-				this.requirePath = inConfig.requirePath || (path(this.path, "require.js"));
+				this.requirePath = inConfig.requirePath || (path(this.path, "lib/require.js"));
 
 				if (this.requirePath.indexOf("file://") != 0) {
 						// make sure this is an absolute path
@@ -420,17 +456,9 @@
 						// should be loaded or restored by now 
 					var result = require.apply(_global, arguments);
 				} catch (exception) {
-					if (exception.lineNumber) {
-						alert(["FWRrequireJS error in context: " + this.name.quote(), exception.message,
-							exception.lineNumber, exception.fileName].join("\n"));
-					} else {
-							// there's no error info on the exception, so show an
-							// alert that there was an error in this context, then
-							// throw the exception to let FW display a more 
-							// meaningful error message
-						alert("FWRrequireJS error in context: " + this.name.quote());
-						throw exception;
-					}
+					alert(["FWRrequireJS error in context: " + this.name.quote(), 
+						exception.message, exception.lineNumber || "", 
+						exception.fileName || ""].join("\n"));
 				}
 
 					// save the current values of our globals, which will also 

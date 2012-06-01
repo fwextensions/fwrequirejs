@@ -6,18 +6,15 @@
    ======================================================================== */
 
 
-(function() {
-
-	// we have to save fw.currentScriptDir before calling runScript because that
-	// will leave fw.currentScriptDir null
-var currentScriptDir = fw.currentScriptDir,
-	requirePath = fw.currentScriptDir + "/../../";
-
 if (typeof require != "function" || !require.amd) {
-	fw.runScript(requirePath + "fwrequire.js"); }
+	fw.runScript(fw.currentScriptDir + "/../../fwrequire.js"); }
 
-	// specify that the baseUrl is in this directory
-require({ baseUrl: currentScriptDir, requirePath: requirePath }, [
+	// pass an exception-triggering function to require so it knows our directory
+	// and specify that the baseUrl is there, while require.js is up two levels
+require(function(){0()}, { 
+	baseUrl: "./", 
+	requirePath: "../../" 
+}, [
 	"foo"
 ], function NoLib(
 	foo)
@@ -28,5 +25,3 @@ require({ baseUrl: currentScriptDir, requirePath: requirePath }, [
 	doh.t(result.indexOf(message) == 0);
 	doh.t(result.length > message.length);
 });
-
-})();
