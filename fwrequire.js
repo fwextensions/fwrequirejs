@@ -509,8 +509,7 @@
 					baseUrl: (inConfig && inConfig.context && inConfig.baseUrl) || "lib"
 				};
 
-					// now instantiate the require library at the path and 
-					// filename passed to us from delegateRequire
+					// now instantiate the require library 
 				fw.runScript(this.requirePath);
 
 				if (typeof require != "function") {
