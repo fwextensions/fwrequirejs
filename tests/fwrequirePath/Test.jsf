@@ -1,6 +1,6 @@
 /* ===========================================================================
 
-	Test having the baseUrl not in the usual place.
+	Test using fwrequirePath to specify a different path to the files.
 
    ======================================================================== */
 
@@ -9,7 +9,6 @@ if (typeof require != "function" || !require.amd) {
 	fw.runScript(fw.currentScriptDir + "/../../fwrequire.js"); }
 
 require(function(){0()}, { 
-	baseUrl: "lib",
 	fwrequirePath: "../../fwrequire.js"
 }, [
 	"foo"

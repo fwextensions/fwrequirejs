@@ -18,10 +18,10 @@
 	fwrequire.js manages the loading of multiple require.js files, so that 
 	different versions of both fwrequire.js and require.js can co-exist in the
 	same global scope.  fwrequire.js is basically two scripts in one.  Whichever
-	.jsf file runs first will load its fwrequire.js file, and the setupDispatcher
+	.jsf file runs first will load its fwrequire.js file, and the setupDelegator
 	function will be called, since there's no global require at that point.
 
-	When require() is called subsequently, the dispatcher looks to see if it has 
+	When require() is called subsequently, the delegator looks to see if it has 
 	a Context object at the path of the .jsf file calling require().  If not, it 
 	looks for fwrequire.js at that path and runs it, which will cause that file's
 	setupContext() function to be called.  That way, each path gets its own 
@@ -49,35 +49,35 @@
 	- fw.currentScriptDir is now Extension 2/lib/
 	- _initialContextPath is set to the parent directory of fw.currentScriptDir,
 	  which is Extension 2/
-	- setupDispatcher() runs and creates the global require()
+	- setupDelegator() runs and creates the global require()
 	- require() is called from within Command C.jsf
 	- fw.currentScriptDir is null, so contextPath defaults to _initialContextPath
 	- requirePath and fwrequirePath default to _initialContextPath/lib
 	- Extension 2/lib/fwrequire.js is run and calls setupContext()
-	- The Context registers with dispatchRequire and is told its path is 
+	- The Context registers with delegateRequire and is told its path is 
 	  Extension 2/ and the requirePath is Extension 2/lib/
 	- The Context sets up a config of { baseUrl: "lib" } and then runs 
 	  Extension 2/lib/require.js
-	- The Context dispatches the require call to the require() created by 
+	- The Context delegates the require call to the require() created by 
 	  Extension 2/lib/require.js, and the real require does its magic
 	- The Context saves off the "real" require global and restores the require
-	  function created by setupDispatcher()
+	  function created by setupDelegator()
 	- The user runs Extension 1/Command A.jsf
 	- The global require is already defined, so Command A doesn't run lib/require.js
 	- fw.currentScriptDir is Extension 1/
-	- The global dispatchRequire looks for a context at Extension 1/ and doesn't
+	- The global delegateRequire looks for a context at Extension 1/ and doesn't
 	  find one
 	- requirePath defaults to Extension 1/lib
 	- Extension 1/lib/require.js is run and calls its own setupContext(), but 
-	  not setupDispatcher(), since the global require is already defined
-	- The Context registers with dispatchRequire and is told its path is 
+	  not setupDelegator(), since the global require is already defined
+	- The Context registers with delegateRequire and is told its path is 
 	  Extension 1/ and the requirePath is Extension 1/lib/
 	- The Context sets up a config of { baseUrl: "lib" } and then runs 
 	  Extension 1/lib/require.js
-	- The Context dispatches the require call to the require() created by 
+	- The Context delgates the require call to the require() created by 
 	  Extension 1/lib/require.js, and the real require does its magic
 	- The Context saves off the "real" require global and restores the require
-	  function created by setupDispatcher() in Extension 2/lib/fwrequire.js
+	  function created by setupDelegator() in Extension 2/lib/fwrequire.js
 */
 
 
@@ -105,13 +105,33 @@
 	}
 
 
+	// =======================================================================
+	function extractPath(
+		inPath)
+	{
+		if (typeof inPath == "function") {
+			try {
+					// this should be a function that triggers an exception.
+					// by catching the exception, we can determine the name
+					// of the file where the function was lexically defined,
+					// since fw.currentScriptDir is unreliable.  hackery!
+				inPath();
+			} catch (exception) { 
+				return Files.getDirectory(exception.fileName);
+			}
+		}
+
+		return inPath;
+	}
+
+
 		// get a reference to the global object.  this would be "window"
 		// in a browser, but isn't named in Fireworks.
 	var _global = (function() { return this; })();
 	
 
 	// =======================================================================
-	function setupDispatcher() 
+	function setupDelegator() 
 	{
 			// a hash to store each Context by name
 		var _contexts = {},
@@ -127,30 +147,10 @@
 
 
 		// ===================================================================
-		function extractPath(
-			inPath)
-		{
-			if (typeof inPath == "function") {
-				try {
-						// this should be a function that triggers an exception.
-						// by catching the exception, we can determine the name
-						// of the file where the function was lexically defined,
-						// since fw.currentScriptDir is unreliable.  hackery!
-					inPath();
-				} catch (exception) { 
-					return Files.getDirectory(exception.fileName);
-				}
-			}
-			
-			return inPath;
-		}
-		
-		
-		// ===================================================================
-		var dispatchRequire = _global.require = _global.define = _global.requirejs = function dispatchRequire(
+		var delegateRequire = _global.require = _global.define = _global.requirejs = function delegateRequire(
 			inConfig)
 		{
-				// if there's a currentScriptDir, then that means the dispatcher
+				// if there's a currentScriptDir, then that means the delegator
 				// has already been set up, so use that as the context path.
 				// otherwise, default to _initialContextPath.
 			var contextPath = fw.currentScriptDir || _initialContextPath,
@@ -165,11 +165,11 @@
 			if (typeof inConfig == "function") {
 					// passing a function that triggers an exception is a way to
 					// set the contextPath, since we can fish the caller's 
-					// filename out of the exception
+					// filename out of the exception object
 				contextPath = extractPath(inConfig);
 				fwrequirePath = path(contextPath, "lib/");
 				
-					// we don't want ot pass this function to the real require,
+					// we don't want to pass this function to the real require,
 					// so pretend it doesn't exist 
 				args = args.slice(1);
 				inConfig = args[0];
@@ -235,7 +235,7 @@
 			}
 
 			if (context) {
-					// dispatch the execute call to the Context instance for the 
+					// delegate the execute call to the Context instance for the 
 					// requested path
 				return context.execute.apply(context, args);
 			} else {
@@ -244,32 +244,32 @@
 		};
 
 
-		dispatchRequire.version = 0.1;
+		delegateRequire.version = 0.1;
 		
 			// remember the path to the file that instantiated us
-		dispatchRequire.path = unescape(fw.currentScriptDir);
+		delegateRequire.path = unescape(fw.currentScriptDir);
 		
 			// add these to match RequireJS, in case there's code that wants to
 			// inspect them before calling require()
-		dispatchRequire.amd = {
+		delegateRequire.amd = {
 			multiversion: true,
 			plugins: true,
 			jQuery: true
 		};
 		
-		dispatchRequire.isAsync = dispatchRequire.isBrowser = false;
+		delegateRequire.isAsync = delegateRequire.isBrowser = false;
 
 
 		// ===================================================================
-		dispatchRequire.config = function config(
+		delegateRequire.config = function config(
 			inConfig)
 		{
-			return dispatchRequire(inConfig);
+			return delegateRequire(inConfig);
 		}
 
 
 		// ===================================================================
-		dispatchRequire.getContextPaths = function getContextPaths()
+		delegateRequire.getContextPaths = function getContextPaths()
 		{
 			var paths = [];
 
@@ -282,7 +282,7 @@
 
 
 		// ===================================================================
-		dispatchRequire.getContext = function getContext(
+		delegateRequire.getContext = function getContext(
 			inPath)
 		{
 			return _contexts[inPath];
@@ -290,7 +290,7 @@
 
 
 		// ===================================================================
-		dispatchRequire.registerContext = function registerContext(
+		delegateRequire.registerContext = function registerContext(
 			inContext)
 		{
 			if (_newContextInfo) {
@@ -308,7 +308,7 @@
 
 
 		// ===================================================================
-		dispatchRequire.destroyContext = function destroyContext(
+		delegateRequire.destroyContext = function destroyContext(
 			inPath)
 		{
 			var context = _contexts[inPath];
@@ -321,7 +321,7 @@
 
 
 		// ===================================================================
-		dispatchRequire.destroyAll = function destroyAll()
+		delegateRequire.destroyAll = function destroyAll()
 		{
 			for (var path in _contexts) {
 				this.destroyContext(path);
@@ -329,7 +329,7 @@
 		};
 
 
-		return dispatchRequire;
+		return delegateRequire;
 	}
 
 
@@ -401,7 +401,7 @@
 						// use the fwrequirePath as our requirePath, because we
 						// assume fwrequire.js and require.js are in the same place
 					this.requirePath = inConfig.fwrequirePath;
-					
+
 					if (this.requirePath.indexOf("file://") != 0) {
 							// make sure this is an absolute path
 						this.requirePath = path(this.path, this.requirePath);
@@ -481,7 +481,9 @@
 				this.loadGlobal("requirejs");
 
 				if (inConfig && inConfig.requirePath) {
-					this.requirePath = inConfig.requirePath;
+						// an exception function might have been passed in as 
+						// the requirePath, so extract the real path
+					this.requirePath = extractPath(inConfig.requirePath);
 					
 					if (this.requirePath.indexOf("file://") != 0) {
 							// make sure this is an absolute path
@@ -508,7 +510,7 @@
 				};
 
 					// now instantiate the require library at the path and 
-					// filename passed to us from dispatchRequire
+					// filename passed to us from delegateRequire
 				fw.runScript(this.requirePath);
 
 				if (typeof require != "function") {
@@ -656,7 +658,7 @@
 			}
 		}; // end of Context
 
-			// tell the Context to register with the global dispatcher 
+			// tell the Context to register with the global delegator
 		Context.init(require);
 	}
 
@@ -664,9 +666,9 @@
 	try { 
 		if (typeof require != "function") {
 				// the global context function hasn't been set up yet
-			setupDispatcher();
+			setupDelegator();
 		} else {
-				// there's already a global context dispatcher, so just 
+				// there's already a global context delegator, so just 
 				// define the manager for the current path
 			setupContext();
 		}
