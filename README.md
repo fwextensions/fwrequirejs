@@ -1,6 +1,6 @@
 # FWRequireJS: AMD-style modules in Adobe Fireworks
 
-As browser-based applications have become more complex, JavaScript developers have worked out various approaches to including multiple modules on the page without polluting the global namespace.  Complex Adobe Fireworks extensions can benefit from similar solutions, and I’ve tried a few different approaches in the past.  What FWRequireJS offers is [James Burke’s](6) excellent, battle-tested [RequireJS](1) module loader along with some additional infrastructure that permits it to work in the Fireworks JS environment.
+As browser-based applications have become more complex, JavaScript developers have worked out various approaches to including multiple modules on the page without polluting the global namespace.  Complex Adobe Fireworks extensions can benefit from similar solutions, and I’ve tried a few different approaches in the past.  What FWRequireJS offers is [James Burke’s][6] excellent, battle-tested [RequireJS](http://www.requirejs.org/) module loader along with some additional infrastructure that permits it to work in the Fireworks JS environment.
 
 The RequireJS site offers more information about the [Asynchronous Module Definition](2) standard and why it’s useful. 
 
