@@ -2,7 +2,7 @@
 
 Before any of the tests in this directory is run, the [Fireworks Console](http://johndunning.com/fireworks/about/FWConsole) must be installed and open.  The test results are displayed in the console. 
 
-If the FWRequireJS repository is stored in the `Commands/` directory, the tests can be run by selecting *Commands > fwrequirejs > Run All Tests*.  Tests can also be run individually, but they’re too deeply nested to show up in the menu.  You can run them by calling `fw.runScript()` via the console, e.g. `fw.runScript(fw.appJsCommandsDir + "/fwrequirejs/tests/Simple/Test.jsf");`.
+If the FWRequireJS repository is stored in the `Commands/` directory, the tests can be run by selecting *Commands > fwrequirejs > Run All Tests*.  Tests can also be run individually, but they’re too deeply nested to show up in the menu.  You can run them by calling `fw.runScript()` via the console, e.g. `fw.runScript(fw.appJsCommandsDir + "/fwrequirejs/tests/Simple/Test.jsf");`, though they may complain about the `doh` test framework not being loaded.
 
 The tests use the `doh` test framework.  The `dojo` loader is used to load `doh`, and then the `require` and `define` globals created by `dojo` are deleted, since we want to test the actual RequireJS versions of those functions.
 

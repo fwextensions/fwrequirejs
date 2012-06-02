@@ -1,7 +1,6 @@
 /* ===========================================================================
 
-	Test not having a local fwrequire.js file, which doesn't make sense for
-	FW extensions but is useful for using tests from RequireJS.
+	Test having the baseUrl not in the usual place.
 
    ======================================================================== */
 
@@ -9,17 +8,15 @@
 if (typeof require != "function" || !require.amd) {
 	fw.runScript(fw.currentScriptDir + "/../../fwrequire.js"); }
 
-	// pass an exception-triggering function to require so it knows our directory
-	// and specify that the baseUrl is there, while fwrequire.js is up two levels
 require(function(){0()}, { 
-	baseUrl: "./", 
-	fwrequirePath: "../../" 
+	baseUrl: "lib",
+	fwrequirePath: "../../fwrequire.js"
 }, [
 	"foo"
-], function NoLib(
+], function DeepFolder(
 	foo)
 {
-	var message = "No Lib",
+	var message = "DeepFolder",
 		result = foo.bar(message);
 
 	doh.t(result.indexOf(message) == 0);

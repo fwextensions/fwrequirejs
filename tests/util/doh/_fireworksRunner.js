@@ -29,11 +29,6 @@
 	To do:
 		- test getting context paths
 
-		- possibly create better test harness that evaluates strings in the context
-			of the test function
-			if there's an error, it can print what was executing
-			or at least pass a message to the assert functions
-
 		- look for foo.test.js files in the top directory and register those, too
 
 		- maybe instead of copying fwrequire over, just use a .js file that reads

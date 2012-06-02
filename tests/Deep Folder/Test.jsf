@@ -1,0 +1,23 @@
+/* ===========================================================================
+
+	Test having the baseUrl not in the usual place.
+
+   ======================================================================== */
+
+
+if (typeof require != "function" || !require.amd) {
+	fw.runScript(fw.currentScriptDir + "/scripts/lib/fwrequire.js"); }
+
+require(function(){0()}, { 
+	baseUrl: "scripts/lib"
+}, [
+	"foo"
+], function DeepFolder(
+	foo)
+{
+	var message = "DeepFolder",
+		result = foo.bar(message);
+
+	doh.t(result.indexOf(message) == 0);
+	doh.t(result.length > message.length);
+});

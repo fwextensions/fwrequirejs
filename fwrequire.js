@@ -154,10 +154,9 @@
 				// has already been set up, so use that as the context path.
 				// otherwise, default to _initialContextPath.
 			var contextPath = fw.currentScriptDir || _initialContextPath,
-					// by default, assume require.js and fwrequire.js are in a
-					// lib folder under the context folder
-				requirePath = path(contextPath, "lib/"),
-				fwrequirePath = requirePath,
+					// by default, assume fwrequire.js is in a lib folder under 
+					// the context folder
+				fwrequirePath = path(contextPath, "lib/"),
 					// we may need to manipulate the arguments array, so create
 					// a proper array out of it
 				args = [].slice.call(arguments, 0),
@@ -168,7 +167,7 @@
 					// set the contextPath, since we can fish the caller's 
 					// filename out of the exception
 				contextPath = extractPath(inConfig);
-				fwrequirePath = requirePath = path(contextPath, "lib/");
+				fwrequirePath = path(contextPath, "lib/");
 				
 					// we don't want ot pass this function to the real require,
 					// so pretend it doesn't exist 
@@ -179,9 +178,9 @@
 			if (inConfig) {
 				if (inConfig.baseUrl) {
 						// use the config's baseUrl as the path to the Context
-						// and require files
+						// and fwrequire files
 					inConfig.baseUrl = extractPath(inConfig.baseUrl);
-					fwrequirePath = requirePath = inConfig.baseUrl;
+					fwrequirePath = inConfig.baseUrl;
 				}
 				
 				if (inConfig.contextPath) {
@@ -189,22 +188,6 @@
 					
 						// don't pass this to the real require()
 					delete inConfig.contextPath;
-				}
-				
-				if (inConfig.requirePath) {
-						// also default fwrequirePath to requirePath, in case
-						// fwrequirePath isn't set separately
-					fwrequirePath = requirePath = extractPath(inConfig.requirePath);
-					
-					if (requirePath.slice(-3) == ".js") {
-							// a path directly to the require.js file was passed
-							// in, so fwrequirePath should default to that file's
-							// directory, not the require.js file itself
-						fwrequirePath = Files.getDirectory(requirePath);
-					}
-					
-						// don't pass this to the real require()
-					delete inConfig.requirePath;
 				}
 				
 				if (inConfig.fwrequirePath) {
@@ -236,12 +219,12 @@
 				}
 
 				if (Files.exists(fwrequirePath)) {
-						// save the current contextPath and requirePath, which 
+						// save the current contextPath and fwrequirePath, which 
 						// we'll return to the new Context when it calls 
 						// registerContext after we run its JS file
 					_newContextInfo = {
 						path: contextPath,
-						requirePath: requirePath
+						fwrequirePath: fwrequirePath
 					};
 					fw.runScript(fwrequirePath);
 					
@@ -273,6 +256,7 @@
 			plugins: true,
 			jQuery: true
 		};
+		
 		dispatchRequire.isAsync = dispatchRequire.isBrowser = false;
 
 
@@ -412,17 +396,25 @@
 					// Context instance at this path, while require may manage
 					// additional sub-contexts.
 				this.name = this.prettifyPath(this.path);
-				this.requirePath = inConfig.requirePath || (path(this.path, "lib/require.js"));
 
-				if (this.requirePath.indexOf("file://") != 0) {
-						// make sure this is an absolute path
-					this.requirePath = path(this.path, this.requirePath);
-				}
+				if (inConfig.fwrequirePath) {
+						// use the fwrequirePath as our requirePath, because we
+						// assume fwrequire.js and require.js are in the same place
+					this.requirePath = inConfig.fwrequirePath;
+					
+					if (this.requirePath.indexOf("file://") != 0) {
+							// make sure this is an absolute path
+						this.requirePath = path(this.path, this.requirePath);
+					}
 
-				if (this.requirePath.slice(-3) != ".js") {
-						// we only got the path to the folder containing the 
-						// file, so add the default file name
-					this.requirePath = path(this.requirePath, "require.js");
+					if (this.requirePath.slice(-3) == ".js") {
+							// a full path to the fwrequire.js file was specified,
+							// so get just the file's directory and use the 
+							// default file name for require.js
+						this.requirePath = path(Files.getDirectory(this.requirePath), "require.js");
+					}
+				} else {
+					this.requirePath = path(this.path, "lib/require.js");
 				}
 			},
 
@@ -443,12 +435,19 @@
 
 				require.currentContextPath = inConfig ? inConfig.baseUrl : this.path;
 				require.currentContextName = inConfig ? inConfig.context : this.name;
-				
-				if (inConfig.context && !inConfig.baseUrl) {
-						// a context name was passed in, but no baseUrl, which 
-						// means require will create a new context and default
-						// its baseUrl to ./.  but we want the default to be lib/.
-					inConfig.baseUrl = "lib";
+
+				if (inConfig) {
+						// make sure the requirePath property, if any, doesn't go
+						// into the real require.  we only need requirePath once,
+						// when loadRequire is called. 
+					delete inConfig.requirePath;
+					
+					if (inConfig.context && !inConfig.baseUrl) {
+							// a context name was passed in, but no baseUrl, which 
+							// means require will create a new context and default
+							// its baseUrl to ./.  but we want the default to be lib/.
+						inConfig.baseUrl = "lib";
+					}
 				}
 
 				try {
@@ -480,7 +479,24 @@
 				this.loadGlobal("define");
 				this.loadGlobal("require");
 				this.loadGlobal("requirejs");
-				
+
+				if (inConfig && inConfig.requirePath) {
+					this.requirePath = inConfig.requirePath;
+					
+					if (this.requirePath.indexOf("file://") != 0) {
+							// make sure this is an absolute path
+						this.requirePath = path(this.path, this.requirePath);
+					}
+
+					if (this.requirePath.slice(-3) != ".js") {
+							// we only got the path to the folder containing the 
+							// file, so add the default file name
+						this.requirePath = path(this.requirePath, "require.js");
+					}
+					
+					delete inConfig.requirePath;
+				}
+
 					// use the baseUrl from inConfig, if any, or default to lib
 					// for the baseUrl for this instance of require, which will
 					// read this global config object when it loads.  this 

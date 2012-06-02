@@ -67,7 +67,7 @@ require([
 	var rjsTestsPath = currentScriptDir + "requirejs tests/",
 		rjsTests = [],
 		rjsPaths = Files.enumFiles(rjsTestsPath),
-		requirePath = currentScriptDir + "../";
+		fwrequirePath = currentScriptDir + "../";
 
 		// look through the subfolders of the requirejs tests folder, and then
 		// look for a file named something like *-tests.js
@@ -100,10 +100,10 @@ require([
 			// that points to the main lib.  that way, we don't have to modify
 			// the test files from RequireJS, since the global FWRrequireJS will
 			// be set up before they run.
-		fw.runScript(requirePath + "fwrequire.js"); 
+		fw.runScript(fwrequirePath + "fwrequire.js"); 
 		require({
 			contextPath: Files.getDirectory(path),
-			requirePath: requirePath
+			fwrequirePath: fwrequirePath
 		});
 
 			// the RequireJS tests use a baseUrl of "./" if they think they're
