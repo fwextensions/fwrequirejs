@@ -127,7 +127,7 @@ Note that although the AMD specification has “asynchronous” right there in the n
 
 As described above, the default behavior of FWRequireJS is to use the directory of the script that called it as the root directory and to load the `fwrequire.js` and `require.js` files from a `lib/` sub-directory.  These default paths can be changed by passing a configuration object as the first parameter to `require()`.  The configuration object supports a number of different options: 
 
-**`baseUrl`**: The path to the root directory from which modules will be loaded.  This defaults to `lib/` under the directory of the .jsf file calling `require()`.  If you want to use a different directory, e.g., `scripts/’ in this example:
+`baseUrl`: The path to the root directory from which modules will be loaded.  This defaults to `lib/` under the directory of the .jsf file calling `require()`.  If you want to use a different directory, e.g., `scripts/’ in this example:
 
 	Commands/
 		My Export Commands/
@@ -179,7 +179,7 @@ then an absolute path can be used for the `baseUrl`:
 
 Setting the `baseUrl` option tells FWRequireJS where to look for the modules, as well as the `fwrequire.js` and `require.js` files.  Note that this works only if you use the standard module-naming scheme to load modules.  If you want to load a file that ends .js, `require()` will look for it in the directory above the one containing `require.js`, which is probably not what you want.  This can be addressed with the next option.
 
-**`contextPath`**: The path to the “context” in which FWRequireJS is executing and loading modules.  In the standard browser case, this would be the directory containing the webpage that loads RequireJS.  There are no webpages in Fireworks, obviously, so FWRequireJS uses the directory of the .jsf file that loaded it as the starting point for a relative path like `baseUrl`.  
+`contextPath`: The path to the “context” in which FWRequireJS is executing and loading modules.  In the standard browser case, this would be the directory containing the webpage that loads RequireJS.  There are no webpages in Fireworks, obviously, so FWRequireJS uses the directory of the .jsf file that loaded it as the starting point for a relative path like `baseUrl`.  
 
 The problem is that it’s not always possible for a script in Fireworks to determine where the script that’s calling it is located.  The `fw.currentScriptDir` property is set to the path of the last script to be executed via `fw.runScript()`.  The FWRequireJS `require()` function can then look at this property to guess at the directory of the script that called it.  This works in most cases, but not the first time that FWRequireJS is loaded.  The first .jsf file that needs FWRequireJS will call `runScript()` on the `fwrequire.js` file, which causes `fw.currentScriptDir` to be set to the path of `fwrequire.js`, not the calling script.  
 
@@ -251,7 +251,7 @@ The buttons in the panel would need to call the same `exportSelection()` method 
 
 The click handlers for the buttons could then call `exportModule.exportSelection()`.  By pointing the panel’s context to the same path as is used by the .jsf files, the `export` module will only be loaded once, and the same module is available to the code in both places, regardless of whether the user runs a .jsf command first or opens the panel first.  So setting `exportModule.foo = 42` in the panel code would make the same `foo` property available in the .jsf commands, and vice versa.
 
-**`fwrequirePath`**: The path to the `fwrequire.js` file.  If this path is to a directory, then the default `fwrequire.js` file will be loaded.  You can also supply a path directly to the file that should be loaded, if you need to rename the `fwrequire.js` file for some reason.  
+`fwrequirePath`: The path to the `fwrequire.js` file.  If this path is to a directory, then the default `fwrequire.js` file will be loaded.  You can also supply a path directly to the file that should be loaded, if you need to rename the `fwrequire.js` file for some reason.  
 
 This option shouldn’t be necessary very often.  If you change the `baseUrl` directory, you would typically store the `fwrequire.js` and `require.js` files in that same directory.  FWRequireJS will look for its files in `baseUrl`, so specifying that path is usually sufficient for those cases where you don’t store everything in the default `lib/` sub-directory.  
 
@@ -259,7 +259,7 @@ The one case where this is useful is testing.  The FWRequireJS repository contai
 
 Note that since changing this path means `fwrequire.js` is probably not in an immediate child of the directory containing the .jsf file that’s loading it, `fwrequirePath` should be an absolute path.  If it’s relative, you must also set `contextPath` so that FWRequireJS knows the starting directory for calculating the relative path.  You should also set `baseUrl` if the module files aren’t in the standard `lib/` sub-directory, as RequireJS won’t automatically look at `fwrequirePath` for module files. 
 
-**`requirePath`**: The path to the `require.js` file.  Usually, this file will be in the same location as `fwrequire.js`, so supplying the `fwrequirePath` path is sufficient to store it in a different directory than `baseUrl`.  But if for some reason you want `fwrequire.js` and `require.js` to be in different directories, you can set the path with this option. 
+`requirePath`: The path to the `require.js` file.  Usually, this file will be in the same location as `fwrequire.js`, so supplying the `fwrequirePath` path is sufficient to store it in a different directory than `baseUrl`.  But if for some reason you want `fwrequire.js` and `require.js` to be in different directories, you can set the path with this option. 
 
 The [RequireJS documentation][9] lists a number of other options that can also be used in the configuration object.  However, some of them, like `waitSeconds`, won’t make sense in the context of Fireworks. 
 
