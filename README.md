@@ -1,15 +1,15 @@
 # FWRequireJS: AMD-style modules in Adobe Fireworks
 
-As browser-based applications have become more complex, JavaScript developers have worked out various approaches to including multiple modules on the page without polluting the global namespace.  Complex Adobe Fireworks extensions can benefit from similar solutions, and I’ve tried a few different approaches in the past.  What FWRequireJS offers is [James Burke’s][6] excellent, battle-tested [RequireJS](http://www.requirejs.org/) module loader along with some additional infrastructure that permits it to work in the Fireworks JS environment.
+As browser-based applications have become more complex, JavaScript developers have worked out various approaches to including multiple modules on the page without polluting the global namespace.  Complex Adobe Fireworks extensions can benefit from similar solutions, and I’ve tried a few different approaches in the past.  What FWRequireJS offers is [James Burke’s][6] excellent, battle-tested [RequireJS][1] module loader along with some additional infrastructure that permits it to work in the Fireworks JS environment.
 
-The RequireJS site offers more information about the [Asynchronous Module Definition](2) standard and why it’s useful. 
+The RequireJS site offers more information about the [Asynchronous Module Definition][2] standard and why it’s useful. 
 
 
 ## Installing FWRequireJS
 
-If you use git, you can just clone the [FWRequireJS GitHub repository](4).  If not, you can download a [.zip file](5) containing all of the files.
+If you use git, you can just clone the [FWRequireJS GitHub repository][4].  If not, you can download a [.zip file][5] containing all of the files.
 
-Once you have the repository, there are only two files you need from it: `fwrequire.js` and `require.js`.  `require.js` is an unmodified copy of the 2.0.0 release of [RequireJS](3).  `fwrequire.js` wraps up the RequireJS code and enables it to run within Fireworks. 
+Once you have the repository, there are only two files you need from it: `fwrequire.js` and `require.js`.  `require.js` is an unmodified copy of the 2.0.0 release of [RequireJS][3].  `fwrequire.js` wraps up the RequireJS code and enables it to run within Fireworks. 
 
 
 ## Using FWRequireJS
@@ -61,7 +61,7 @@ Your `export.js` file may look something like this:
 		};
 	});	
 
-The `exportSelection()` method will be called from the .jsf files to do the actual exporting, and each file can pass in a different `backgroundColor` parameter.  See the RequireJS site for [more examples](7) of defining modules.
+The `exportSelection()` method will be called from the .jsf files to do the actual exporting, and each file can pass in a different `backgroundColor` parameter.  See the RequireJS site for [more examples][7] of defining modules.
 
 
 ## Requiring modules
@@ -112,7 +112,7 @@ then that module can be loaded with code that looks like this:
 		exportModule.exportSelection("#000000", files.getName());
 	});
 
-Just remember that module paths are relative to the directory from which you loaded `fwrequire.js`, *not* the directory containing the .jsf file that’s using `require()`.  This root directory can be changed via the `baseUrl` property of a configuration object passed to `require()`.  See the [configuration]() section for details. 
+Just remember that module paths are relative to the directory from which you loaded `fwrequire.js`, *not* the directory containing the .jsf file that’s using `require()`.  This root directory can be changed via the `baseUrl` property of a configuration object passed to `require()`.  See the [configuration](#configuring-fwrequirejs) section for details. 
 
 There are two exceptions to this module-naming scheme.  If the module name ends in “.js”, then the path will be treated relative to the .jsf file that is using FWRequireJS.  Also, if you use a module path that starts with `file://`, then the file at that absolute location is loaded.
 
@@ -221,7 +221,7 @@ Why in the world would we want to call a deliberately buggy function?  Well, exc
 
 By defining a function in your .jsf file and passing it to `require()`, you enable the function to figure out the path to your script.  It just needs to call the function inside a `try` block, catch the exception, and look at its `fileName` property.  Yes, it’s a kludge, but it works around an annoying limitation in the Fireworks script handling.
 
-Another common use case for the `contextPath` option is to load a module that’s used by both .jsf commands and a [JSML panel](8).  For example, you might create a panel that has buttons for exporting the selection on different background colors.  The files in your extension might be set up like this:
+Another common use case for the `contextPath` option is to load a module that’s used by both .jsf commands and a [JSML panel][8].  For example, you might create a panel that has buttons for exporting the selection on different background colors.  The files in your extension might be set up like this:
 
 	Commands/
 		My Export Commands/
@@ -261,7 +261,7 @@ Note that since changing this path means `fwrequire.js` is probably not in an im
 
 **`requirePath`**: The path to the `require.js` file.  Usually, this file will be in the same location as `fwrequire.js`, so supplying the `fwrequirePath` path is sufficient to store it in a different directory than `baseUrl`.  But if for some reason you want `fwrequire.js` and `require.js` to be in different directories, you can set the path with this option. 
 
-The [RequireJS documentation](9) lists a number of other options that can also be used in the configuration object.  However, some of them, like `waitSeconds`, won’t make sense in the context of Fireworks. 
+The [RequireJS documentation][9] lists a number of other options that can also be used in the configuration object.  However, some of them, like `waitSeconds`, won’t make sense in the context of Fireworks. 
 
 
 ## Multi-multi-version support
