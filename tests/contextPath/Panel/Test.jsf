@@ -1,0 +1,33 @@
+/* ===========================================================================
+
+	Test using a different contextPath.
+
+   ======================================================================== */
+
+
+(function() {
+
+	// use Files.getDirectory to get the parent of fw.currentScriptDir.  we don't
+	// want to use "../Command" because currently, FWRrequireJS will see that
+	// as a different path than the normalized one, so it will create a separate
+	// context, wihle we want to share the same context
+var contextPath = Files.getDirectory(fw.currentScriptDir) + "/Command/";
+
+if (typeof require != "function" || !require.amd) {
+	fw.runScript(contextPath + "lib/fwrequire.js"); }
+
+require({ contextPath: contextPath }, [
+	"foo"
+], function SimpleTest(
+	foo)
+{
+	var message = "Simple Test",
+		result = foo.bar(message);
+
+	foo.baz = 42;
+	
+	doh.t(result.indexOf(message) == 0);
+	doh.t(result.length > message.length);
+});
+
+})();
