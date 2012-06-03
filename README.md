@@ -47,6 +47,7 @@ The `define()` call can take a number of parameters, but in its simplest form, y
 
 Your `export.js` file may look something like this:
 
+```JavaScript
 	define(function() {
 			// vars and functions that are local to the module 
 			// can be defined here
@@ -60,6 +61,7 @@ Your `export.js` file may look something like this:
 			}
 		};
 	});	
+```
 
 The `exportSelection()` method will be called from the .jsf files to do the actual exporting, and each file can pass in a different `backgroundColor` parameter.  See the RequireJS site for [more examples][7] of defining modules.
 

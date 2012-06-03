@@ -5,7 +5,7 @@
  */
 /*jslint regexp: true, nomen: true */
 /*global window, navigator, document, importScripts, jQuery, setTimeout, opera */
- 
+
 var requirejs, require, define;
 (function (global) {
     'use strict';
