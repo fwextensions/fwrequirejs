@@ -43,9 +43,9 @@
 				Command C.jsf
 				Command D.jsf
 
-	- The user runs Extension 2/Command C.jsf
+	- The user happens to run Extension 2/Command C.jsf
 	- fw.currentScriptDir is Extension 2/
-	- The global require is undefined, so Command C runs lib/fwrequire.js
+	- The global require is undefined, so Command C runs Extension 2/lib/fwrequire.js
 	- fw.currentScriptDir is now Extension 2/lib/
 	- _initialContextPath is set to the parent directory of fw.currentScriptDir,
 	  which is Extension 2/
@@ -55,14 +55,14 @@
 	- requirePath and fwrequirePath default to _initialContextPath/lib
 	- Extension 2/lib/fwrequire.js is run and calls setupContext()
 	- The Context registers with delegateRequire and is told its path is 
-	  Extension 2/ and the requirePath is Extension 2/lib/
+	  Extension 2/ and the fwrequirePath is Extension 2/lib/
 	- The Context sets up a config of { baseUrl: "lib" } and then runs 
 	  Extension 2/lib/require.js
 	- The Context delegates the require call to the require() created by 
-	  Extension 2/lib/require.js, and the real require does its magic
+	  Extension 2/lib/require.js, and the real require() does its magic
 	- The Context saves off the "real" require global and restores the require
 	  function created by setupDelegator()
-	- The user runs Extension 1/Command A.jsf
+	- The user next runs Extension 1/Command A.jsf
 	- The global require is already defined, so Command A doesn't run lib/require.js
 	- fw.currentScriptDir is Extension 1/
 	- The global delegateRequire looks for a context at Extension 1/ and doesn't
@@ -71,7 +71,7 @@
 	- Extension 1/lib/require.js is run and calls its own setupContext(), but 
 	  not setupDelegator(), since the global require is already defined
 	- The Context registers with delegateRequire and is told its path is 
-	  Extension 1/ and the requirePath is Extension 1/lib/
+	  Extension 1/ and the fwrequirePath is Extension 1/lib/
 	- The Context sets up a config of { baseUrl: "lib" } and then runs 
 	  Extension 1/lib/require.js
 	- The Context delgates the require call to the require() created by 
