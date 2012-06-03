@@ -6,7 +6,7 @@ If the FWRequireJS repository is stored in the `Commands/` directory, the tests 
 
 The tests use the `doh` test framework.  The `dojo` loader is used to load `doh`, and then the `require` and `define` globals created by `dojo` are deleted, since we want to test the actual RequireJS versions of those functions.
 
-The `_fireworksRunner.js` in `tests/util/doh/` monkey patches `doh` to run in the Fireworks environment.  It creates a fake `setTimeout()` function, since `doh` depends on that to run tests and it doesn’t exist in Fireworks.  It also implements some utility functions to simplify creating Fireworks tests.  
+The `_fireworksRunner.js` file in `tests/util/doh/` monkey patches `doh` to run in the Fireworks environment.  It creates a fake `setTimeout()` function, since `doh` depends on that to run tests and it doesn’t exist in Fireworks.  It also implements some utility functions to simplify the creation of Fireworks tests.  
 
 The `Run All Tests.jsf` script will automatically detect all the test files and then run them.  Each of the Fireworks test folders contains `Test.js` and `Test.jsf` files.  The .jsf file contains the boilerplate code to load FWRequireJS and then calls `require()` to load some modules and verifies the results.  The .js file sets up and registers the `doh` fixture that runs `Test.jsf`.  Since the Fireworks scripts each expect to have their own copy of `fwrequire.js` and `require.js`, the fixture will copy those files to the local `lib/` folder before running the .jsf file, which avoids having multiple copies in the repository.  The fixture also deletes the `require()` and `define()` globals before each test.  
 

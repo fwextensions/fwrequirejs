@@ -158,7 +158,7 @@ require([
                     // just a folder name was passed in, so use the default filename
                 fwrequirePath = this.path(fwrequirePath, "fwrequire.js");
             }
-            
+
                 // we have to delete the existing files before we can copy new 
                 // ones over them.  these calls will silently fail if the 
                 // destination folder doesn't exist, whic hit won't for some tets.
