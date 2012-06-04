@@ -545,7 +545,8 @@
                             + fwContext.name.quote(),
                             "Module " + moduleName.quote() + " could not be found at " + url].join("\n"));
                         error.url = url;
-                        error.module = moduleName;
+                        error.requireModules = [moduleName];
+                        error.requireType = "scripterror";
                         this.onError(error);
                     }
                 };
