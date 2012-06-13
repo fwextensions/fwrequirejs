@@ -154,9 +154,9 @@
                 // has already been set up, so use that as the context path.
                 // otherwise, default to _initialContextPath.
             var contextPath = fw.currentScriptDir || _initialContextPath,
-                    // by default, assume fwrequire.js is in a lib folder under 
-                    // the context folder
-                fwrequirePath = path(contextPath, "lib/"),
+                    // we'll set fwrequirePath below after checking if 
+					// contextPath has been configured
+                fwrequirePath,
                     // we may need to manipulate the arguments array, so create
                     // a proper array out of it
                 args = [].slice.call(arguments, 0),
@@ -167,7 +167,6 @@
                     // set the contextPath, since we can fish the caller's 
                     // filename out of the exception object
                 contextPath = extractPath(inConfig);
-                fwrequirePath = path(contextPath, "lib/");
                 
                     // we don't want to pass this function to the real require,
                     // so pretend it doesn't exist 
@@ -177,23 +176,21 @@
 
             if (inConfig) {
                 if (inConfig.baseUrl) {
-                        // use the config's baseUrl as the path to the Context
-                        // and fwrequire files
-                    inConfig.baseUrl = extractPath(inConfig.baseUrl);
-                    fwrequirePath = inConfig.baseUrl;
+                        // use the config's baseUrl as the path to fwrequire.js
+                    fwrequirePath = inConfig.baseUrl = extractPath(inConfig.baseUrl);
                 }
                 
                 if (inConfig.contextPath) {
+                        // extract the contextPath and don't pass this to the 
+						// real require()
                     contextPath = extractPath(inConfig.contextPath);
-                    
-                        // don't pass this to the real require()
                     delete inConfig.contextPath;
                 }
                 
                 if (inConfig.fwrequirePath) {
+                        // extract the fwrequirePath and don't pass this to the 
+						// real require()
                     fwrequirePath = extractPath(inConfig.fwrequirePath);
-                    
-                        // don't pass this to the real require()
                     delete inConfig.fwrequirePath;
                 }
             }
@@ -203,6 +200,10 @@
                 // in escaped or not.  use that as a key to the context object.
             contextPath = unescape(path(contextPath, ""));
             context = _contexts[contextPath];
+			
+				// if we haven't already found a setting for fwrequirePath, 
+				// default it to a lib directory under the contextPath
+			fwrequirePath = fwrequirePath || path(contextPath, "lib/");
 
             if (!context) {
                     // call the file at this path that instantiates the Context.
@@ -244,7 +245,7 @@
         };
 
 
-        delegateRequire.version = 0.1;
+        delegateRequire.version = 0.2;
         
             // remember the path to the file that instantiated us
         delegateRequire.path = unescape(fw.currentScriptDir);

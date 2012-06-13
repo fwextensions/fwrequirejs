@@ -4,13 +4,10 @@
 var currentScriptDir = fw.currentScriptDir + "/",
     testName = "contextPath";
 
-    // copy fwrequire.js and require.js to just the Command/lib folder.  the 
-    // scripts in Panel will load those files. 
-doh.fw.copyRequireFiles("Command/lib");
-
 doh.register(
     "fwrequire",
     doh.fw.createRequireFixture(
+		"Command/lib",
         testName,
         function(t)
         {

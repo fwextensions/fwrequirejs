@@ -7,6 +7,7 @@ var currentScriptDir = fw.currentScriptDir + "/",
 doh.register(
 	"fwrequire",
 	doh.fw.createRequireFixture(
+		"Version 2.0.0/lib",
 		testName,
 		function(t)
 		{

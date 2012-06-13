@@ -184,11 +184,10 @@ require([
                 fwrequirePath = "lib/fwrequire.js";
             }
             
-            this.copyRequireFiles(fwrequirePath);
-            
             doh.register(
                 "fwrequire",
                 doh.fw.createRequireFixture(
+					fwrequirePath,
                     testName,
                     function(t)
                     {
@@ -204,6 +203,7 @@ require([
         
         
         createRequireFixture: function(
+			inLibPath,
             inTestName,
             inTest)
         {
@@ -215,8 +215,23 @@ require([
             }
             
             
+            var currentScriptDir = fw.currentScriptDir + "/",
+                testName = Files.getFilename(currentScriptDir),
+                fwrequirePath = "lib/fwrequire.js";;
+				
+			if (typeof inLibPath == "function") {
+				inTest = inLibPath;
+			} else if (inTestName == "function") {
+				inTest = inTestName;
+				testName = inLibPath;
+			} else {
+				fwrequirePath = inLibPath;
+			}
+            
+            this.copyRequireFiles(fwrequirePath);
+			
             return this.createFixture(
-                inTestName,
+                testName,
                 resetGlobals,
                 inTest,
                 resetGlobals
