@@ -155,7 +155,7 @@
                 // otherwise, default to _initialContextPath.
             var contextPath = fw.currentScriptDir || _initialContextPath,
                     // we'll set fwrequirePath below after checking if 
-					// contextPath has been configured
+                    // contextPath has been configured
                 fwrequirePath,
                     // we may need to manipulate the arguments array, so create
                     // a proper array out of it
@@ -182,14 +182,14 @@
                 
                 if (inConfig.contextPath) {
                         // extract the contextPath and don't pass this to the 
-						// real require()
+                        // real require()
                     contextPath = extractPath(inConfig.contextPath);
                     delete inConfig.contextPath;
                 }
                 
                 if (inConfig.fwrequirePath) {
                         // extract the fwrequirePath and don't pass this to the 
-						// real require()
+                        // real require()
                     fwrequirePath = extractPath(inConfig.fwrequirePath);
                     delete inConfig.fwrequirePath;
                 }
@@ -200,10 +200,10 @@
                 // in escaped or not.  use that as a key to the context object.
             contextPath = unescape(path(contextPath, ""));
             context = _contexts[contextPath];
-			
-				// if we haven't already found a setting for fwrequirePath, 
-				// default it to a lib directory under the contextPath
-			fwrequirePath = fwrequirePath || path(contextPath, "lib/");
+            
+                // if we haven't already found a setting for fwrequirePath, 
+                // default it to a lib directory under the contextPath
+            fwrequirePath = fwrequirePath || path(contextPath, "lib/");
 
             if (!context) {
                     // call the file at this path that instantiates the Context.
@@ -434,7 +434,7 @@
                     this.loadRequire(inConfig);
                 }
 
-					// provide some information about the context on the real require
+                    // provide some information about the context on the real require
                 require.currentContextPath = (inConfig && inConfig.baseUrl) || this.path;
                 require.currentContextName = (inConfig && inConfig.context) || this.name;
                 require.currentContext = this;
