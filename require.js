@@ -9,7 +9,7 @@
 var requirejs, require, define;
 (function (global) {
 	'use strict';
-//
+
 	var version = '2.0.0',
 		commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg,
 		cjsRequireRegExp = /require\s*\(\s*["']([^'"\s]+)["']\s*\)/g,
