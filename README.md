@@ -71,11 +71,11 @@ The `exportSelection()` method will be called from the .jsf files to do the actu
 The .jsf file gets access to the module defined in `export.js` by calling a global `require()` function.  Before it can do so, however, it must make sure the FWRequireJS library is loaded.  To do this, you must include a couple lines of boilerplate code at the beginning of every .jsf file that makes use of the FWRequireJS library:
 
 ```JavaScript
-if (typeof require != "function" || !require.amd) {
+if (typeof require != "function" || !require.version) {
 	fw.runScript(fw.currentScriptDir + "/lib/fwrequire.js"); }
 ```
 
-This if-statement checks that there’s a global function called `require` and that it has an `amd` property.  If neither of these is true, then it loads `fwrequire.js` in a `lib/` sub-directory, which will, in turn, load `require.js` from the same directory.  By supplying some configuration settings, you can store the files in a different directory, but FWRequireJS will look in `lib/` by default.
+This if-statement checks that there’s a global function called `require` and that it has a `version` property.  If neither of these is true, then it loads `fwrequire.js` in a `lib/` sub-directory, which will, in turn, load `require.js` from the same directory.  By supplying some configuration settings, you can store the files in a different directory, but FWRequireJS will look in `lib/` by default.
 
 Why does *every* .jsf file that uses FWRequireJS need this code?  Why can’t you just load it in the first one?  Well, unlike a webpage, you have no way of controlling which .jsf files are run or in which order.  That’s up to the user interacting with the *Commands* menu in Fireworks.  So *any* .jsf file might be the first to be run, and therefore *every* file that uses it has to check for, and possibly load, FWRequireJS.  See the [Multi-multi-version support](#multi-multi-version-support) section for more details.
 
@@ -179,7 +179,7 @@ then an absolute path can be used for the `baseUrl`:
 var currentScriptDir = fw.currentScriptDir,
 	requirePath = fw.currentScriptDir + "/../Common/";
 
-if (typeof require != "function" || !require.amd) {
+if (typeof require != "function" || !require.version) {
 	fw.runScript(requirePath + "fwrequire.js"); }
 
 require({ baseUrl: requirePath }, [
@@ -207,7 +207,7 @@ So the first time FWRequireJS is loaded, it has to guess where the caller is loc
 (function() {
 var currentScriptDir = fw.currentScriptDir;
 
-if (typeof require != "function" || !require.amd) {
+if (typeof require != "function" || !require.version) {
 	fw.runScript(currentScriptDir + "/../Common/fwrequire.js"); }
 
 require({ baseUrl: "../Common", contextPath: currentScriptDir }, [
@@ -225,7 +225,7 @@ Note that this command file has to save the `fw.currentScriptDir` in a local var
 Since it’s a bit of a pain to have to save off `fw.currentScriptDir` in every file that uses FWRequireJS with a non-standard `baseUrl`, there’s a simpler way to specify the path to the context:
 
 ```JavaScript
-if (typeof require != "function" || !require.amd) {
+if (typeof require != "function" || !require.version) {
 	fw.runScript(fw.currentScriptDir + "/../Common/fwrequire.js"); }
 
 require(function(){0()}, { baseUrl: "../Common" }, [
@@ -261,7 +261,7 @@ Another common use case for the `contextPath` option is to load a module that’s 
 The buttons in the panel would need to call the same `exportSelection()` method that the corresponding .jsf commands do, so in the panel’s .js file you would need to load FWRequireJS, if necessary, and then require the `export` module:  
 
 ```JavaScript
-if (typeof require != "function" || !require.amd) {
+if (typeof require != "function" || !require.version) {
 	fw.runScript(fw.appJsCommandsDir + "/My Export Commands/lib/fwrequire.js"); }
 
 require({ contextPath: fw.appJsCommandsDir + "/My Export Commands" }, [

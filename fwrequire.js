@@ -2,14 +2,14 @@
 
     fwrequire.js
 
-    Copyright 2012 John Dunning.  
+    Copyright (c) 2012 John Dunning.  All rights reserved.
     fw@johndunning.com
     http://johndunning.com/fireworks
 
     fwrequire.js is released under the MIT license.  See the LICENSE file 
     for details.
 
-    Documentation is availalbe at https://github.com/fwextensions/fwrequirejs
+    Documentation is available at https://github.com/fwextensions/fwrequirejs
 
    ======================================================================== */
 
@@ -245,7 +245,7 @@
         };
 
 
-        delegateRequire.version = 0.2;
+        delegateRequire.version = 0.3;
         
             // remember the path to the file that instantiated us
         delegateRequire.path = unescape(fw.currentScriptDir);
@@ -339,7 +339,7 @@
     {
         // ===================================================================
         var Context = {
-            version: 0.1,
+            version: 0.2,
                 // these are the globals that belong to the context and will 
                 // be saved after the context execution exits
             globals: {},
@@ -434,8 +434,10 @@
                     this.loadRequire(inConfig);
                 }
 
-                require.currentContextPath = inConfig ? inConfig.baseUrl : this.path;
-                require.currentContextName = inConfig ? inConfig.context : this.name;
+					// provide some information about the context on the real require
+                require.currentContextPath = (inConfig && inConfig.baseUrl) || this.path;
+                require.currentContextName = (inConfig && inConfig.context) || this.name;
+                require.currentContext = this;
 
                 if (inConfig) {
                         // make sure the requirePath property, if any, doesn't go
@@ -504,7 +506,7 @@
                     // for the baseUrl for this instance of require, which will
                     // read this global config object when it loads.  this 
                     // probably isn't strictly necessary, since a non-lib baseUrl
-                    // should almost always be passedin via a config object on
+                    // should almost always be passed in via a config object on
                     // each require call.
                 require = {
                     baseUrl: (inConfig && inConfig.context && inConfig.baseUrl) || "lib"

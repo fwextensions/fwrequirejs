@@ -13,7 +13,7 @@
 	// context, wihle we want to share the same context
 var contextPath = Files.getDirectory(fw.currentScriptDir) + "/Command/";
 
-if (typeof require != "function" || !require.amd) {
+if (typeof require != "function" || !require.version) {
 	fw.runScript(contextPath + "lib/fwrequire.js"); }
 
 require({ contextPath: contextPath }, [
@@ -25,9 +25,14 @@ require({ contextPath: contextPath }, [
 		result = foo.bar(message);
 
 	foo.baz = 42;
+
+	doh.t(function() { return result.indexOf(message) == 0 });
+	doh.t(function() { return result.length > message.length });
 	
-	doh.t(result.indexOf(message) == 0);
-	doh.t(result.length > message.length);
+		// make sure that the currentContextPath on require is the same as the
+		// contextPath we set in the config.  it has to be unescaped, since
+		// fwrequire will unescaped currentContextPath.
+	doh.t(function() { return require.currentContextPath == unescape(contextPath) });
 });
 
 })();
