@@ -131,6 +131,27 @@ Module filenames should end in .js, not .jsf, because you don’t want them to sho
 Note that although the AMD specification has “asynchronous” right there in the name, files are always loaded synchronously in the Fireworks environment.  And since Fireworks doesn’t support any HTTP request functionality, all modules must be loaded from local files.
 
 
+### Determining which modules are loaded
+
+If you create your own modules, it’s straightforward to know which module files are required to be packaged with your extension.  But if you require a module from someone else’s code, especially a vast library like [dojo][10], it can be difficult to tell which other modules are loaded as a result.  RequireJS does include a [tool][11] that builds a single minified JS file with all of the modules that a page needs, but it doesn’t work with Fireworks (and minification provides less of a benefit when the JS files are immediately accessible on disk).  
+
+Instead, you can inspect the global `require` after running your extension.  Install and open the [Fireworks Console][12] extension.  In the upper part of the panel, enter this code and press return:
+
+```JavaScript
+require.getContextPaths()
+```
+
+This should display an array of file paths to the contexts of any extensions that have been run during the current Fireworks session and that use the FWRequireJS library.  Examine the array for the path to your extension.  Assuming it’s the first one, enter this code and press return:
+
+```JavaScript
+require.getContext(require.getContextPaths()[0]).require.s
+```
+
+The `getContext()` method returns the object that manages the RequireJS instance in the context of a given path.  The `require` property of that object is the “real” `require` object, which exposes some of its internal state via its `s` property.  (See the [Multi-multi-version support](#multi-multi-version-support) section if you’re interested in more details on how FWRequireJS interacts with RequireJS.)
+
+Executing the code above should display an object representing the context that RequireJS manages.  The `urlMap` property of that object lists the file paths that have been loaded in the context.  That list should contain all the files that are necessary for your extension.  Examining the `urlMap` can be handy when using a complex library like dojo, which contains hundreds of files and where one module often requires four or five others.  Just require whichever modules you need, and then look at `urlMap` to see which other dojo files you must include in your extension.
+
+
 ## Configuring FWRequireJS
 
 As described above, the default behavior of FWRequireJS is to use the directory of the script that called it as the root directory and to load the `fwrequire.js` and `require.js` files from a `lib/` sub-directory.  These default paths can be changed by passing a configuration object as the first parameter to `require()`.  The configuration object supports a number of different options: 
@@ -363,3 +384,6 @@ All of this may seem like a lot of complicated machinery just for making your co
 [7]: http://www.requirejs.org/docs/api.html#define
 [8]: http://johndunning.com/fireworks/about/JSMLPanel
 [9]: http://www.requirejs.org/docs/api.html#config
+[10]: http://dojotoolkit.org/
+[11]: http://requirejs.org/docs/optimization.html
+[12]: http://johndunning.com/fireworks/about/FWConsole

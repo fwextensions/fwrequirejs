@@ -96,6 +96,8 @@
                 // make sure there is exactly one / between each argument
             if (lastChar != "/" && nextArgument[0] != "/") {
                 path += "/";
+            } else if (lastChar == "/" && nextArgument[0] == "/") {
+                path = path.slice(0, -1);
             }
 
             path += arguments[i];
@@ -435,7 +437,7 @@
                 }
 
                     // provide some information about the context on the real require
-                require.currentContextPath = (inConfig && inConfig.baseUrl) || this.path;
+                require.currentContextPath = this.path;
                 require.currentContextName = (inConfig && inConfig.context) || this.name;
                 require.currentContext = this;
 
