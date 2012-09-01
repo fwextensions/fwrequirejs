@@ -7,7 +7,7 @@ The RequireJS site offers more information about the [Asynchronous Module Defini
 
 ## Installing FWRequireJS
 
-If you use git, you can just clone the [FWRequireJS GitHub repository][4].  If not, you can download a [.zip file][5] containing all of the files.
+If you use git, you can just clone the [FWRequireJS GitHub repository][4].  If not, you can download a [.zip archive][5] containing all of the files.
 
 Once you have the repository, there are only two files you need from it: `fwrequire.js` and `require.js`.  `require.js` is an unmodified copy of the 2.0.0 release of [RequireJS][3].  `fwrequire.js` wraps up the RequireJS code and enables it to run within Fireworks. 
 
@@ -364,13 +364,13 @@ An example will hopefully make things a little more concrete.  Let’s say you hav
 
 After launching Fireworks, say the user runs *Command D* first.  That .jsf file checks for a global `require()`, doesn’t find it, and then runs the `fwrequire.js` in its `lib/` directory.  
 
-After FWRequireJS is loaded, the `Command D.jsf` script calls `require()` to load the `files` and `export` modules.  This global function looks at the root directory for this command, `Commands/Extension 2/` in this case, and checks whether it already has created a context for that path.  It hasn’t, so it saves off the current values of `require` and `define`, and then runs `Commands/Extension 2/lib/fwrequire.js` (or the appropriate `fwrequirePath`, if one was passed in on a configuration object).  Loading `fwrequire.js` in turn loads `require.js`.
+After FWRequireJS is loaded, the `Command D.jsf` script calls `require()` to load the `files` and `export` modules.  This global function looks at the root directory for this command, `Commands/Extension 2/` in this case, and checks whether it already has created a context for that path.  It hasn’t, so it runs `Commands/Extension 2/lib/fwrequire.js` (or the file pointed by `fwrequirePath`, if a path was passed in on the configuration object).  Loading `fwrequire.js` in turn loads `require.js`.
 
-Just before `require.js` is loaded, the existing `require()` and `define()` globals are saved off and delete, allowing RequireJS to replace them with the actual functions.  The original `require()` function from FWRequireJS (confused yet?) is still executing, however, and after loading RequireJS it calls `require()` with the arguments it originally received.  At this point, RequireJS takes over and does its module-loading magic.
+Just before `require.js` is loaded, the existing `require()` and `define()` globals are saved off and deleted, allowing RequireJS to replace them with the actual functions.  The original `require()` function from FWRequireJS (confused yet?) is still executing, however, and after loading RequireJS it calls `require()` with the arguments it originally received.  At this point, RequireJS takes over and does its module-loading magic.
 
-After RequireJS is done, execution switches back to FWRequireJS, which saves off the `require()` and `define()` globals and restores its original copies.  So at this point, the global `require()` points to the function defined by `Extension 2/lib/fwrequire.js`, which is keeping track of the RequireJS globals created by `Extension 2/lib/require.js`.
+After RequireJS is done, execution switches back to FWRequireJS, which saves off the `require()` and `define()` globals and restores the original values.  So at this point, the global `require()` points to the function defined by `Extension 2/lib/fwrequire.js`, which is keeping track of the RequireJS globals created by `Extension 2/lib/require.js`.
 
-Now the user runs *Command A*.  The .jsf checks for a global `require()` function and finds it in this case, so it doesn’t need to run `Extension 1/lib/fwrequire.js`.  But the FWRequireJS version of `require()` sees that the call is using `Extension 1/` as the root directory, and that a context hasn’t been created for that path yet.  So it does the same thing as before: saves off the globals, runs `lib/require.js`, delegates the call to the new instance of `require()`, and then restores the globals when that call has finished.  Phew!
+Now the user runs *Command A*.  The .jsf checks for a global `require()` function and finds it in this case, so it doesn’t need to run `Extension 1/lib/fwrequire.js`.  But the FWRequireJS version of `require()` sees that the call is using `Extension 1/` as the root directory, and that a context hasn’t been created for that path yet.  So it does the same thing as before: saves off the globals, runs `Extension 1/lib/require.js`, delegates the call to the new instance of `require()`, and then restores the globals when that call has finished.  Phew!
 
 All of this may seem like a lot of complicated machinery just for making your code more modular.  And that’s probably true if all you’re doing is writing a few simple extensions or don’t mind creating big, monolithic scripts.  But if you start to create many extensions and want to share code between them, the FWRequireJS loader can make the process a lot more efficient. 
 
